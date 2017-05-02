@@ -1,0 +1,54 @@
+00001  0000             ;
+00002  0001             *=$0801
+00003  0801  0C 08 0A              BYTE $0C, $08, $0A, $00, $9E, $20
+00004  0807  34 30 39              BYTE $34, $30, $39, $36, $00, $00
+00005  080D  00                    BYTE $00
+00006  080E             
+00007  080E             *=$1000
+00008  1000             
+00009  1000             COUNTER    = $FB ; A ZEROPAGE ADDRESS TO BE USED AS A COUNTER (ONLY FB TO FE ARE UNUSED)
+00010  1000             
+00011  1000             FLASH
+00012  1000             
+00013  1000  A9 00                 LDA #$00    ; RESET
+00014  1002  85 FB                 STA COUNTER ; COUNTER
+00015  1004             
+00016  1004  78                    SEI       ; ENABLE INTERRUPTS
+00017  1005             
+00018  1005  A9 FB      LOOP1      LDA #$FB  ; WAIT FOR VERTICAL RETRACE
+00019  1007  CD 12 D0   LOOP2      CMP $D012 ; UNTIL IT REACHES 251TH RASTER LINE ($FB)
+00020  100A  D0 FB                 BNE LOOP2 ; WHICH IS OUT OF THE INNER SCREEN AREA
+00021  100C             
+00022  100C  E6 FB                 INC COUNTER ; INCREASE FRAME COUNTER
+00023  100E  A5 FB                 LDA COUNTER ; CHECK IF COUNTER
+00024  1010  C9 32                 CMP #$32    ; REACHED 50
+00025  1012  D0 07                 BNE OUT     ; IF NOT, PASS THE COLOR CHANGING ROUTINE
+00026  1014             
+00027  1014  A9 00                 LDA #$00    ; RESET
+00028  1016  85 FB                 STA COUNTER ; COUNTER
+00029  1018             
+00030  1018  EE 21 D0              INC $D021 ; INCREASE BACKGROUND COLOR
+00031  101B             OUT
+00032  101B  AD 12 D0              LDA $D012 ; MAKE SURE WE REACHED
+00033  101E  CD 12 D0   LOOP3      CMP $D012 ; THE NEXT RASTER LINE SO NEXT TIME WE
+00034  1021  F0 FB                 BEQ LOOP3 ; SHOULD CATCH THE SAME LINE NEXT FRAME
+00035  1023             
+00036  1023  4C 05 10              JMP LOOP1 ; JUMP TO MAIN LOOP
+00037  1026             
+
+******* 5 Label(s) *******
+flash = $1000 
+loop1 = $1005 
+loop2 = $1007 
+loop3 = $101E 
+out = $101B 
+
+******* 1 Unused label(s) *******
+flash
+
+******* 2 Variable(s) *******
+counter  = $00FB
+tgt_c64  = $0001
+******* 1 Unused variables(s) *******
+tgt_c64
+
