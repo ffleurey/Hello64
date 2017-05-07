@@ -1,51 +1,53 @@
-00001  0000             ;
-00002  0001             *=$0801
-00003  0801  0C 08 0A              BYTE $0C, $08, $0A, $00, $9E, $20
-00004  0807  34 30 39              BYTE $34, $30, $39, $36, $00, $00
-00005  080D  00                    BYTE $00
-00006  080E             
-00007  080E             *=$1000
-00008  1000             
-00009  1000             ; THE ADDRESSES FROM $0400 TO $07E7 CORRESPOND TO THE SCREEN
-00010  1000             ; THE ADDRESSES FROM $D800 TO $D8E7 CORRESPOND TO THE COLOR RAM
-00011  1000             ; THE ADDRESS $00D6 CORRESPONDS TO THE CURSOR LINE
-00012  1000             
-00013  1000                        ; CLEAR THE SCREEN
-00014  1000  A2 00      CLEAR      LDX #$00
-00015  1002  A9 20                 LDA #$20 ; THE SPACE CHARACTER
-00016  1004  9D 00 04   LOOP1      STA $0400,X
-00017  1007  9D 00 05              STA $0500,X
-00018  100A  9D 00 06              STA $0600,X
-00019  100D  9D E8 06              STA $06E8,X ; TO MAKE SURE WE STAY WITHIN $07E7
-00020  1010  E8                    INX
-00021  1011  D0 F1                 BNE LOOP1
-00022  1013             
-00023  1013                        ; PRINT THE HELLO WORLD SRTING
-00024  1013  A2 00                 LDX #$00
-00025  1015  BD 35 10   LOOP2      LDA MESSAGE,X
-00026  1018  29 3F                 AND #$3F        ; KEEP ONLY THE CHARCTERS (SHOULD NOT BE NECESSARY)
-00027  101A  9D 36 04              STA $0436,X
-00028  101D  E8                    INX
-00029  101E  E0 0C                 CPX #$0C        ; $0C = LENGTH OF THE STRING TO DISPLAY
-00030  1020  D0 F3                 BNE LOOP2
-00031  1022             
-00032  1022                        ; CHANGE THE COLOR OF THE LETTERS
-00033  1022  A9 00                 LDA #$00
-00034  1024  A2 00                 LDX #$00
-00035  1026  69 01      LOOP3      ADC #1
-00036  1028  E8                    INX
-00037  1029  9D 36 D8              STA $D836,X
-00038  102C  C9 0C                 CMP #$0C
-00039  102E  D0 F6                 BNE LOOP3
-00040  1030             
-00041  1030                        ; MOVE CURSOR TO LINE 4
-00042  1030  A9 03                 LDA #$03
-00043  1032  85 D6                 STA $00D6
-00044  1034             
-00045  1034  60                    RTS
-00046  1035             MESSAGE
-00047  1035  08 05 0C              TEXT 'HELLO WORLD!'
-00048  1041             
+00001  0000             ; KEY IN THE BASIC PROGRAM "10 SYS 4096"
+00002  0001             ; WHICH INVOKES WHATEVER MACHINE CODE AT ADDR 4096
+00003  0001             *=$0801
+00004  0801  0C 08 0A              BYTE $0C, $08, $0A, $00, $9E, $20
+00005  0807  34 30 39              BYTE $34, $30, $39, $36, $00, $00
+00006  080D  00                    BYTE $00
+00007  080E             
+00008  080E             ; PUT THE MACHINE CODE AT ADDRESS $1000 = 4096 DEC
+00009  080E             *=$1000
+00010  1000             
+00011  1000             ; THE ADDRESSES FROM $0400 TO $07E7 CORRESPOND TO THE SCREEN
+00012  1000             ; THE ADDRESSES FROM $D800 TO $D8E7 CORRESPOND TO THE COLOR RAM
+00013  1000             ; THE ADDRESS $00D6 CORRESPONDS TO THE CURSOR LINE
+00014  1000             
+00015  1000                        ; CLEAR THE SCREEN
+00016  1000  A2 00      CLEAR      LDX #$00
+00017  1002  A9 20                 LDA #$20 ; THE SPACE CHARACTER
+00018  1004  9D 00 04   LOOP1      STA $0400,X
+00019  1007  9D 00 05              STA $0500,X
+00020  100A  9D 00 06              STA $0600,X
+00021  100D  9D E8 06              STA $06E8,X ; TO MAKE SURE WE STAY WITHIN $07E7
+00022  1010  E8                    INX
+00023  1011  D0 F1                 BNE LOOP1
+00024  1013             
+00025  1013                        ; PRINT THE HELLO WORLD STRING
+00026  1013  A2 00                 LDX #$00
+00027  1015  BD 35 10   LOOP2      LDA MESSAGE,X
+00028  1018  29 3F                 AND #$3F        ; KEEP ONLY THE CHARCTERS (SHOULD NOT BE NECESSARY)
+00029  101A  9D 36 04              STA $0436,X
+00030  101D  E8                    INX
+00031  101E  E0 0C                 CPX #$0C        ; $0C = LENGTH OF THE STRING TO DISPLAY
+00032  1020  D0 F3                 BNE LOOP2
+00033  1022             
+00034  1022                        ; CHANGE THE COLOR OF THE LETTERS
+00035  1022  A9 00                 LDA #$00
+00036  1024  A2 00                 LDX #$00
+00037  1026  69 01      LOOP3      ADC #1
+00038  1028  E8                    INX
+00039  1029  9D 36 D8              STA $D836,X
+00040  102C  C9 0C                 CMP #$0C
+00041  102E  D0 F6                 BNE LOOP3
+00042  1030             
+00043  1030                        ; MOVE CURSOR TO LINE 4
+00044  1030  A9 03                 LDA #$03
+00045  1032  85 D6                 STA $00D6
+00046  1034             
+00047  1034  60                    RTS
+00048  1035             MESSAGE
+00049  1035  08 05 0C              TEXT 'HELLO WORLD!'
+00050  1041             
 
 ******* 5 Label(s) *******
 clear = $1000 

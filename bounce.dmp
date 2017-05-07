@@ -53,82 +53,119 @@
 00053  1023             UPDATEX    ; UPDATE THE SPRITE COORDINATES
 00054  1023  AD 00 D0              LDA $D000
 00055  1026  18                    CLC
-00056  1027  6D 72 10              ADC DX
+00056  1027  6D A5 10              ADC DX
 00057  102A  8D 00 D0              STA $D000
-00058  102D                        
-00059  102D  C9 FF                 CMP #$FF
-00060  102F  F0 07                 BEQ BOUNCEX
-00061  1031  C9 15                 CMP #$15
-00062  1033  F0 03                 BEQ BOUNCEX
-00063  1035             
-00064  1035  4C 41 10              JMP UPDATEY
-00065  1038             BOUNCEX
-00066  1038  A9 00                 LDA #$00
-00067  103A  38                    SEC
-00068  103B  ED 72 10              SBC DX
-00069  103E  8D 72 10              STA DX
-00070  1041             
-00071  1041             UPDATEY
-00072  1041  AD 01 D0              LDA $D001
-00073  1044  18                    CLC
-00074  1045  6D 73 10              ADC DY
-00075  1048  8D 01 D0              STA $D001
-00076  104B             
-00077  104B  C9 E5                 CMP #$E5
-00078  104D  F0 07                 BEQ BOUNCEY
-00079  104F  C9 30                 CMP #$30
-00080  1051  F0 03                 BEQ BOUNCEY
-00081  1053             
-00082  1053  4C 5F 10              JMP WAITFORNEXTLINE
-00083  1056             BOUNCEY
-00084  1056  A9 00                 LDA #$00
-00085  1058  38                    SEC
-00086  1059  ED 73 10              SBC DY
-00087  105C  8D 73 10              STA DY
-00088  105F             
-00089  105F             
-00090  105F                        
-00091  105F                        ;       LDA $D001
-00092  105F                        ;       CLC
-00093  105F                        ;       ADC #DY
-00094  105F                        ;       STA $D001
-00095  105F             
-00096  105F             
-00097  105F             WAITFORNEXTLINE 
-00098  105F                        ; WAIT FOR THE NEXT LINE TO BE TRACED (TO MAKE SURE THAT THE NEXT TIME WE SEE LINE $FB WE WILL BE ON THE NEXT FRAME)
-00099  105F  AD 12 D0              LDA $D012
-00100  1062  CD 12 D0   LOOP0      CMP $D012
-00101  1065  F0 FB                 BEQ LOOP0 ; LOOP AS LONG AS WE ARE ON THE SAME LINE
-00102  1067                        
-00103  1067                        ; WAIT FOR THE TRACING OF THE #FB LINE (WHICH IS OFF SCREEN)
-00104  1067  AD 12 D0   LOOP1      LDA $D012
-00105  106A  C9 FB                 CMP #$FB
-00106  106C  D0 F9                 BNE LOOP1 ; LOOP AS LONG AS WE HAVE NOT REACHED LINE $FB
-00107  106E                        
-00108  106E  4C 23 10              JMP UPDATEX
-00109  1071                        
-00110  1071  60                    RTS
-00111  1072             
-00112  1072  01         DX         BYTE $01
-00113  1073  01         DY         BYTE $01
-00114  1074             
-00115  1074             
-00116  1074             
-00117  1074             
+00058  102D  B0 08                 BCS XOVER       ; OVER 255
+00059  102F  AD A5 10              LDA DX
+00060  1032  30 13                 BMI GOINGLEFT
+00061  1034  4C 53 10              JMP LEFTORRIGHT
+00062  1037             
+00063  1037             XOVER      
+00064  1037  AD A5 10              LDA DX
+00065  103A  30 0B                 BMI GOINGLEFT
+00066  103C             
+00067  103C             FLIPBIT9
+00068  103C  AD 10 D0              LDA $D010       ; THE 9TH BIT FOR THE X COORDINATES FOR ALL SPRITES
+00069  103F  49 01                 EOR #$01
+00070  1041  8D 10 D0              STA $D010
+00071  1044  4C 53 10              JMP LEFTORRIGHT
+00072  1047             
+00073  1047             GOINGLEFT
+00074  1047  A9 00                 LDA #$00
+00075  1049  38                    SEC
+00076  104A  ED A5 10              SBC DX
+00077  104D  18                    CLC
+00078  104E  6D 00 D0              ADC $D000
+00079  1051  B0 E9                 BCS FLIPBIT9
+00080  1053             
+00081  1053             LEFTORRIGHT 
+00082  1053  AD 10 D0              LDA $D010
+00083  1056  29 01                 AND #$01
+00084  1058  D0 07                 BNE RIGHT
+00085  105A             LEFT
+00086  105A  AD 00 D0              LDA $D000
+00087  105D  C9 15                 CMP #$15
+00088  105F  F0 0A                 BEQ BOUNCEX
+00089  1061             RIGHT
+00090  1061  AD 00 D0              LDA $D000
+00091  1064  C9 40                 CMP #$40
+00092  1066  F0 03                 BEQ BOUNCEX
+00093  1068             
+00094  1068  4C 74 10              JMP UPDATEY
+00095  106B             BOUNCEX
+00096  106B  A9 00                 LDA #$00
+00097  106D  38                    SEC
+00098  106E  ED A5 10              SBC DX
+00099  1071  8D A5 10              STA DX
+00100  1074             
+00101  1074             UPDATEY
+00102  1074  AD 01 D0              LDA $D001
+00103  1077  18                    CLC
+00104  1078  6D A6 10              ADC DY
+00105  107B  8D 01 D0              STA $D001
+00106  107E             
+00107  107E  C9 E5                 CMP #$E5
+00108  1080  F0 07                 BEQ BOUNCEY
+00109  1082  C9 30                 CMP #$30
+00110  1084  F0 03                 BEQ BOUNCEY
+00111  1086             
+00112  1086  4C 92 10              JMP WAITFORNEXTLINE
+00113  1089             BOUNCEY
+00114  1089  A9 00                 LDA #$00
+00115  108B  38                    SEC
+00116  108C  ED A6 10              SBC DY
+00117  108F  8D A6 10              STA DY
+00118  1092             
+00119  1092             
+00120  1092                        
+00121  1092                        ;       LDA $D001
+00122  1092                        ;       CLC
+00123  1092                        ;       ADC #DY
+00124  1092                        ;       STA $D001
+00125  1092             
+00126  1092             
+00127  1092             WAITFORNEXTLINE 
+00128  1092                        ; WAIT FOR THE NEXT LINE TO BE TRACED (TO MAKE SURE THAT THE NEXT TIME WE SEE LINE $FB WE WILL BE ON THE NEXT FRAME)
+00129  1092  AD 12 D0              LDA $D012
+00130  1095  CD 12 D0   LOOP0      CMP $D012
+00131  1098  F0 FB                 BEQ LOOP0 ; LOOP AS LONG AS WE ARE ON THE SAME LINE
+00132  109A                        
+00133  109A                        ; WAIT FOR THE TRACING OF THE #FB LINE (WHICH IS OFF SCREEN)
+00134  109A  AD 12 D0   LOOP1      LDA $D012
+00135  109D  C9 FB                 CMP #$FB
+00136  109F  D0 F9                 BNE LOOP1 ; LOOP AS LONG AS WE HAVE NOT REACHED LINE $FB
+00137  10A1                        
+00138  10A1  4C 23 10              JMP UPDATEX
+00139  10A4                        
+00140  10A4  60                    RTS
+00141  10A5             
+00142  10A5  01         DX         BYTE $01
+00143  10A6  01         DY         BYTE $01
+00144  10A7             
+00145  10A7             
+00146  10A7             
+00147  10A7             
 
-******* 10 Label(s) *******
-bouncex = $1038 
-bouncey = $1056 
-dx = $1072 
-dy = $1073 
-loop0 = $1062 
-loop1 = $1067 
+******* 16 Label(s) *******
+bouncex = $106B 
+bouncey = $1089 
+dx = $10A5 
+dy = $10A6 
+flipbit9 = $103C 
+goingleft = $1047 
+left = $105A 
+leftorright = $1053 
+loop0 = $1095 
+loop1 = $109A 
+right = $1061 
 showball = $1000 
 updatex = $1023 
-updatey = $1041 
-waitfornextline = $105F 
+updatey = $1074 
+waitfornextline = $1092 
+xover = $1037 
 
-******* 1 Unused label(s) *******
+******* 2 Unused label(s) *******
+left
 showball
 
 ******* 1 Variable(s) *******

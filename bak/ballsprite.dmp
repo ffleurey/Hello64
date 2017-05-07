@@ -1,0 +1,65 @@
+00001  0000             ; KEY IN THE BASIC PROGRAM "10 SYS 4096"
+00002  0001             ; WHICH INVOKES WHATEVER MACHINE CODE AT ADDR 4096
+00003  0001             *=$0801
+00004  0801  0C 08 0A              BYTE $0C, $08, $0A, $00, $9E, $20
+00005  0807  34 30 39              BYTE $34, $30, $39, $36, $00, $00
+00006  080D  00                    BYTE $00
+00007  080E             
+00008  080E             ; MY BALL SPRITE DATA
+00009  080E             *=$0900
+00010  0900  00 3F 00              BYTE $00,$3F,$00,$00,$FF,$C0
+00011  0906  03 FF F0              BYTE $03,$FF,$F0,$07,$C3,$F8
+00012  090C  0F 87 FC              BYTE $0F,$87,$FC,$1F,$0F,$FC
+00013  0912  1E 1F FE              BYTE $1E,$1F,$FE,$3E,$3F,$FE
+00014  0918  3C 7F FE              BYTE $3C,$7F,$FE,$7C,$FF,$FE
+00015  091E  7C FF FE              BYTE $7C,$FF,$FE,$7F,$FF,$FE
+00016  0924  7F FF FE              BYTE $7F,$FF,$FE,$7F,$FF,$1C
+00017  092A  3F FF 1C              BYTE $3F,$FF,$1C,$3F,$FF,$18
+00018  0930  3F FF F0              BYTE $3F,$FF,$F0,$1F,$FF,$E0
+00019  0936  1F FF C0              BYTE $1F,$FF,$C0,$07,$FF,$80
+00020  093C  00 7C 00              BYTE $00,$7C,$00
+00021  093F             
+00022  093F             
+00023  093F             
+00024  093F             ; PUT THE MACHINE CODE AT ADDRESS $1000 = 4096 DEC
+00025  093F             *=$1000
+00026  1000             
+00027  1000             SHOWBALL
+00028  1000                        ; SET THE ADDRESS OF THE DATA FOR SPRITE 0
+00029  1000  A9 24                 LDA #$24        ; THE ADDRESS OF THE SPRITE DATA (0X24 * 0X40 = 0X0900)
+00030  1002  A2 00                 LDX #$00
+00031  1004  9D F8 07              STA $07F8,X     ; POINTER FOR THE DATA FOR SPRITE 0
+00032  1007             
+00033  1007                        ; ENABLE SPRITE 0
+00034  1007  A9 FF                 LDA #$FF
+00035  1009  A2 15                 LDX #$15
+00036  100B  9D 00 D0              STA $D000,X
+00037  100E                        
+00038  100E                        ; SPRITE 0 COLOR
+00039  100E  A9 07                 LDA #$07        ; YELLOW
+00040  1010  A2 00                 LDX #$00
+00041  1012  9D 27 D0              STA $D027,X
+00042  1015             
+00043  1015             
+00044  1015  A9 A0                 LDA #$A0        ; SOME COORDINATES
+00045  1017             
+00046  1017  A2 00                 LDX #$00
+00047  1019  9D 00 D0              STA $D000,X    ; X
+00048  101C             
+00049  101C  A2 01                 LDX #$01
+00050  101E  9D 00 D0              STA $D000,X    ; Y
+00051  1021                        
+00052  1021  60                    RTS
+00053  1022             
+
+******* 1 Label(s) *******
+showball = $1000 
+
+******* 1 Unused label(s) *******
+showball
+
+******* 1 Variable(s) *******
+tgt_c64  = $0001
+******* 1 Unused variables(s) *******
+tgt_c64
+

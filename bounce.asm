@@ -55,10 +55,40 @@ updatex  ; update the sprite coordinates
         clc
         adc dx
         sta $D000
-      
-        cmp #$FF
-        beq bouncex
+        bcs xover       ; over 255
+        lda dx
+        bmi goingleft
+        jmp leftorright
+
+xover   
+        lda dx
+        bmi goingleft
+
+flipbit9
+        lda $D010       ; the 9th bit for the x coordinates for all sprites
+        eor #$01
+        sta $D010     
+        jmp leftorright
+
+goingleft
+        lda #$00
+        sec
+        sbc dx
+        clc
+        adc $D000
+        bcs flipbit9  
+
+leftorright
+        lda $D010
+        and #$01
+        bne right
+left
+        lda $D000
         cmp #$15
+        beq bouncex
+right
+        lda $D000
+        cmp #$40
         beq bouncex
 
         jmp updatey
