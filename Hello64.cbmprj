@@ -17,8 +17,8 @@
     <AutoLaunchName>hello64.prg</AutoLaunchName>
     <Cartridge>
         <CrtBuildingCartridge>False</CrtBuildingCartridge>
-        <CrtSignature>C64 CARTRIDGE</CrtSignature>
-        <CrtName />
+        <CrtSignature>THINGML</CrtSignature>
+        <CrtName>BOUNCE</CrtName>
         <CrtHeaderLength>40</CrtHeaderLength>
         <CrtVersionHigh>1</CrtVersionHigh>
         <CrtVersionLow>0</CrtVersionLow>

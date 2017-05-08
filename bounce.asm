@@ -8,19 +8,18 @@
 
 ; my ball sprite data
 *=$0900
+
  BYTE $00,$3F,$00,$00,$FF,$C0
  BYTE $03,$FF,$F0,$07,$C3,$F8
- BYTE $0F,$87,$FC,$1F,$0F,$FC
- BYTE $1E,$1F,$FE,$3E,$3F,$FE
- BYTE $3C,$7F,$FE,$7C,$FF,$FE
- BYTE $7C,$FF,$FE,$7F,$FF,$FE
- BYTE $7F,$FF,$FE,$7F,$FF,$1C
- BYTE $3F,$FF,$1C,$3F,$FF,$18
+ BYTE $0F,$0F,$FC,$1E,$3F,$FC
+ BYTE $1C,$7F,$FE,$38,$FF,$FE
+ BYTE $39,$FF,$FE,$73,$FF,$FE
+ BYTE $73,$FF,$FE,$77,$FF,$FE
+ BYTE $7F,$FF,$FE,$7F,$FF,$FC
+ BYTE $3F,$FF,$FC,$3F,$FF,$F8
  BYTE $3F,$FF,$F0,$1F,$FF,$E0
  BYTE $1F,$FF,$C0,$07,$FF,$80
  BYTE $00,$7C,$00
-
-
 
 ; Put the machine code at address $1000 = 4096 dec
 *=$1000
@@ -38,8 +37,7 @@ showball
         
         ; sprite 0 color
         lda #$07        ; yellow
-        ldx #$00
-        sta $D027,x
+        sta $D027
 
         ; initialize the position of sprite 0 to A0 x A0
         lda #$50        ; some coordinates
@@ -86,6 +84,7 @@ left
         lda $D000
         cmp #$15
         beq bouncex
+        jmp updatey
 right
         lda $D000
         cmp #$40
@@ -97,6 +96,9 @@ bouncex
         sec
         sbc dx
         sta dx
+        ; increment the color
+        inc $D027     
+        inc $D020
 
 updatey
         lda $D001
@@ -115,14 +117,8 @@ bouncey
         sec
         sbc dy
         sta dy
-
-
-       
- ;       lda $D001
- ;       clc
- ;       adc #dy
- ;       sta $D001
-
+        inc $D027
+        inc $D020
 
 waitfornextline
         ; wait for the next line to be traced (to make sure that the next time we see line $FB we will be on the next frame)
