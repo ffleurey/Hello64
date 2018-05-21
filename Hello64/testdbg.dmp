@@ -1,0 +1,344 @@
+00001  0000             ; KEY IN THE BASIC PROGRAM "10 SYS 4096"
+00002  0001             ; WHICH INVOKES WHATEVER MACHINE CODE AT ADDR 4096
+00003  0001             *=$0801
+00004  0801  0C 08 0A              BYTE $0C, $08, $0A, $00, $9E, $20
+00005  0807  34 30 39              BYTE $34, $30, $39, $36, $00, $00
+00006  080D  00                    BYTE $00
+00007  080E             
+00008  080E             ; MY BALL SPRITE DATA
+00009  080E             *=$0900
+00010  0900  00 3F 00              BYTE $00,$3F,$00,$00,$FF,$C0
+00011  0906  03 FF F0              BYTE $03,$FF,$F0,$07,$C3,$F8
+00012  090C  0F 87 FC              BYTE $0F,$87,$FC,$1F,$0F,$FC
+00013  0912  1E 1F FE              BYTE $1E,$1F,$FE,$3E,$3F,$FE
+00014  0918  3C 7F FE              BYTE $3C,$7F,$FE,$7C,$FF,$FE
+00015  091E  7C FF FE              BYTE $7C,$FF,$FE,$7F,$FF,$FE
+00016  0924  7F FF FE              BYTE $7F,$FF,$FE,$7F,$FF,$1C
+00017  092A  3F FF 1C              BYTE $3F,$FF,$1C,$3F,$FF,$18
+00018  0930  3F FF F0              BYTE $3F,$FF,$F0,$1F,$FF,$E0
+00019  0936  1F FF C0              BYTE $1F,$FF,$C0,$07,$FF,$80
+00020  093C  00 7C 00              BYTE $00,$7C,$00
+00021  093F             
+00022  093F             
+00023  093F             
+00024  093F             ; PUT THE MACHINE CODE AT ADDRESS $1000 = 4096 DEC
+00025  093F             *=$1000
+00026  1000             
+00027  1000             SHOWBALL
+00028  1000                        ; SET THE ADDRESS OF THE DATA FOR SPRITE 0
+00029  1000  A9 24                 LDA #$24        ; THE ADDRESS OF THE SPRITE DATA (0X24 * 0X40 = 0X0900)
+00030  1002  A2 00                 LDX #$00
+00031  1004  9D F8 07              STA $07F8,X     ; POINTER FOR THE DATA FOR SPRITE 0
+00032  1007             
+00033  1007                        ; ENABLE SPRITE 0
+00034  1007  A9 FF                 LDA #$FF
+00035  1009  A2 15                 LDX #$15
+00036  100B  9D 00 D0              STA $D000,X
+00037  100E                        
+00038  100E                        ; SPRITE 0 COLOR
+00039  100E  A9 07                 LDA #$07        ; YELLOW
+00040  1010  A2 00                 LDX #$00
+00041  1012  9D 27 D0              STA $D027,X
+00042  1015             
+00043  1015             
+00044  1015  A9 A0                 LDA #$A0        ; SOME COORDINATES
+00045  1017             
+00046  1017  A2 00                 LDX #$00
+00047  1019  9D 00 D0              STA $D000,X    ; X
+00048  101C             
+00049  101C  A2 01                 LDX #$01
+00050  101E  9D 00 D0              STA $D000,X    ; Y
+00051  1021                        
+00052  1021  60                    RTS
+00053  1022             
+00054  1022             ; KEY IN THE BASIC PROGRAM "10 SYS 4096"
+00055  1022             ; WHICH INVOKES WHATEVER MACHINE CODE AT ADDR 4096
+00056  1022             *=$0801
+00057  0801                        ; JMP $1000
+00058  0801  0C 08 0A              BYTE $0C, $08, $0A, $00, $9E, $20
+00059  0807  34 30 39              BYTE $34, $30, $39, $36, $00, $00
+00060  080D  00                    BYTE $00
+00061  080E             
+00062  080E             ; MY BALL SPRITE DATA
+00063  080E             *=$0900
+00064  0900             
+00065  0900  00 3F 00              BYTE $00,$3F,$00,$00,$FF,$C0
+00066  0906  03 FF F0              BYTE $03,$FF,$F0,$07,$C3,$F8
+00067  090C  0F 0F FC              BYTE $0F,$0F,$FC,$1E,$3F,$FC
+00068  0912  1C 7F FE              BYTE $1C,$7F,$FE,$38,$FF,$FE
+00069  0918  39 FF FE              BYTE $39,$FF,$FE,$73,$FF,$FE
+00070  091E  73 FF FE              BYTE $73,$FF,$FE,$77,$FF,$FE
+00071  0924  7F FF FE              BYTE $7F,$FF,$FE,$7F,$FF,$FC
+00072  092A  3F FF FC              BYTE $3F,$FF,$FC,$3F,$FF,$F8
+00073  0930  3F FF F0              BYTE $3F,$FF,$F0,$1F,$FF,$E0
+00074  0936  1F FF C0              BYTE $1F,$FF,$C0,$07,$FF,$80
+00075  093C  00 7C 00              BYTE $00,$7C,$00
+00076  093F             
+00077  093F             ; PUT THE MACHINE CODE AT ADDRESS $1000 = 4096 DEC
+00078  093F             *=$1000
+00079  1000             
+00080  1000             SHOWBALL
+00081  1000                        ; SET THE ADDRESS OF THE DATA FOR SPRITE 0
+00082  1000  A9 24                 LDA #$24        ; THE ADDRESS OF THE SPRITE DATA (0X24 * 0X40 = 0X0900)
+00083  1002  A2 00                 LDX #$00
+00084  1004  9D F8 07              STA $07F8,X     ; POINTER FOR THE DATA FOR SPRITE 0
+00085  1007             
+00086  1007                        ; ENABLE SPRITE 0
+00087  1007  A9 FF                 LDA #$FF
+00088  1009  A2 15                 LDX #$15
+00089  100B  9D 00 D0              STA $D000,X
+00090  100E                        
+00091  100E                        ; SPRITE 0 COLOR
+00092  100E  A9 07                 LDA #$07        ; YELLOW
+00093  1010  8D 27 D0              STA $D027
+00094  1013             
+00095  1013                        ; INITIALIZE THE POSITION OF SPRITE 0 TO A0 X A0
+00096  1013  A9 50                 LDA #$50        ; SOME COORDINATES
+00097  1015  A2 00                 LDX #$00
+00098  1017  9D 00 D0              STA $D000,X    ; X
+00099  101A             
+00100  101A  A9 33                 LDA #$33        ; SOME COORDINATES
+00101  101C  A2 01                 LDX #$01
+00102  101E  9D 00 D0              STA $D000,X    ; Y
+00103  1021             
+00104  1021             UPDATEX    ; UPDATE THE SPRITE COORDINATES
+00105  1021  AD 00 D0              LDA $D000
+00106  1024  18                    CLC
+00107  1025  6D 0F 08              ADC DX
+00108  1028  8D 00 D0              STA $D000
+00109  102B  B0 08                 BCS XOVER       ; OVER 255
+00110  102D  AD 0F 08              LDA DX
+00111  1030  30 13                 BMI GOINGLEFT
+00112  1032  4C 51 10              JMP LEFTORRIGHT
+00113  1035             
+00114  1035             XOVER      
+00115  1035  AD 0F 08              LDA DX
+00116  1038  30 0B                 BMI GOINGLEFT
+00117  103A             
+00118  103A             FLIPBIT9
+00119  103A  AD 10 D0              LDA $D010       ; THE 9TH BIT FOR THE X COORDINATES FOR ALL SPRITES
+00120  103D  49 01                 EOR #$01
+00121  103F  8D 10 D0              STA $D010
+00122  1042  4C 51 10              JMP LEFTORRIGHT
+00123  1045             
+00124  1045             GOINGLEFT
+00125  1045  A9 00                 LDA #$00
+00126  1047  38                    SEC
+00127  1048  ED 0F 08              SBC DX
+00128  104B  18                    CLC
+00129  104C  6D 00 D0              ADC $D000
+00130  104F  B0 E9                 BCS FLIPBIT9
+00131  1051             
+00132  1051             LEFTORRIGHT 
+00133  1051  AD 10 D0              LDA $D010
+00134  1054  29 01                 AND #$01
+00135  1056  D0 0A                 BNE RIGHT
+00136  1058             LEFT
+00137  1058  AD 00 D0              LDA $D000
+00138  105B  C9 15                 CMP #$15
+00139  105D  F0 0D                 BEQ BOUNCEX
+00140  105F  4C 7B 10              JMP UPDATEY
+00141  1062             RIGHT
+00142  1062  AD 00 D0              LDA $D000
+00143  1065  C9 40                 CMP #$40
+00144  1067  F0 03                 BEQ BOUNCEX
+00145  1069             
+00146  1069  4C 7B 10              JMP UPDATEY
+00147  106C             BOUNCEX
+00148  106C  A9 00                 LDA #$00
+00149  106E  38                    SEC
+00150  106F  ED 0F 08              SBC DX
+00151  1072  8D 0F 08              STA DX
+00152  1075                        ; INCREMENT THE COLOR
+00153  1075  EE 27 D0              INC $D027
+00154  1078  EE 20 D0              INC $D020
+00155  107B             
+00156  107B             UPDATEY
+00157  107B  AD 01 D0              LDA $D001
+00158  107E  18                    CLC
+00159  107F  6D B3 10              ADC DY
+00160  1082  8D 01 D0              STA $D001
+00161  1085             
+00162  1085  C9 E5                 CMP #$E5
+00163  1087  F0 07                 BEQ BOUNCEY
+00164  1089  C9 30                 CMP #$30
+00165  108B  F0 03                 BEQ BOUNCEY
+00166  108D             
+00167  108D  4C 9F 10              JMP WAITFORNEXTLINE
+00168  1090             BOUNCEY
+00169  1090  A9 00                 LDA #$00
+00170  1092  38                    SEC
+00171  1093  ED B3 10              SBC DY
+00172  1096  8D B3 10              STA DY
+00173  1099  EE 27 D0              INC $D027
+00174  109C  EE 20 D0              INC $D020
+00175  109F             
+00176  109F             WAITFORNEXTLINE 
+00177  109F                        ; WAIT FOR THE NEXT LINE TO BE TRACED (TO MAKE SURE THAT THE NEXT TIME WE SEE LINE $FB WE WILL BE ON THE NEXT FRAME)
+00178  109F  AD 12 D0              LDA $D012
+00179  10A2  CD 12 D0   LOOP0      CMP $D012
+00180  10A5  F0 FB                 BEQ LOOP0 ; LOOP AS LONG AS WE ARE ON THE SAME LINE
+00181  10A7                        
+00182  10A7                        ; WAIT FOR THE TRACING OF THE #FB LINE (WHICH IS OFF SCREEN)
+00183  10A7  AD 12 D0   LOOP1      LDA $D012
+00184  10AA  C9 FB                 CMP #$FB
+00185  10AC  D0 F9                 BNE LOOP1 ; LOOP AS LONG AS WE HAVE NOT REACHED LINE $FB
+00186  10AE                        
+00187  10AE  4C 21 10              JMP UPDATEX
+00188  10B1                        
+00189  10B1  60                    RTS
+00190  10B2             
+00191  10B2  01         DX         BYTE $01
+00192  10B3  01         DY         BYTE $01
+00193  10B4             
+00194  10B4             
+00195  10B4             
+00196  10B4             
+00197  10B4             ; KEY IN THE BASIC PROGRAM "10 SYS 4096"
+00198  10B4             ; WHICH INVOKES WHATEVER MACHINE CODE AT ADDR 4096
+00199  10B4             *=$0801
+00200  0801  0C 08 0A              BYTE $0C, $08, $0A, $00, $9E, $20
+00201  0807  34 30 39              BYTE $34, $30, $39, $36, $00, $00
+00202  080D  00                    BYTE $00
+00203  080E             
+00204  080E             ; PUT THE MACHINE CODE AT ADDRESS $1000 = 4096 DEC
+00205  080E             *=$1000
+00206  1000             
+00207  1000             ; THE ADDRESSES FROM $0400 TO $07E7 CORRESPOND TO THE SCREEN
+00208  1000             ; THE ADDRESSES FROM $D800 TO $D8E7 CORRESPOND TO THE COLOR RAM
+00209  1000             ; THE ADDRESS $00D6 CORRESPONDS TO THE CURSOR LINE
+00210  1000             
+00211  1000                        ; CLEAR THE SCREEN
+00212  1000  A2 00      CLEAR      LDX #$00
+00213  1002  A9 20                 LDA #$20 ; THE SPACE CHARACTER
+00214  1004  9D 00 04   LOOP1      STA $0400,X
+00215  1007  9D 00 05              STA $0500,X
+00216  100A  9D 00 06              STA $0600,X
+00217  100D  9D E8 06              STA $06E8,X ; TO MAKE SURE WE STAY WITHIN $07E7
+00218  1010  E8                    INX
+00219  1011  D0 F1                 BNE LOOP1
+00220  1013             
+00221  1013                        ; PRINT THE HELLO WORLD STRING
+00222  1013  A2 00                 LDX #$00
+00223  1015  BD 35 10   LOOP2      LDA MESSAGE,X
+00224  1018  29 3F                 AND #$3F        ; KEEP ONLY THE CHARCTERS (SHOULD NOT BE NECESSARY)
+00225  101A  9D 36 04              STA $0436,X
+00226  101D  E8                    INX
+00227  101E  E0 0C                 CPX #$0C        ; $0C = LENGTH OF THE STRING TO DISPLAY
+00228  1020  D0 F3                 BNE LOOP2
+00229  1022             
+00230  1022                        ; CHANGE THE COLOR OF THE LETTERS
+00231  1022  A9 00                 LDA #$00
+00232  1024  A2 00                 LDX #$00
+00233  1026  69 01      LOOP3      ADC #1
+00234  1028  E8                    INX
+00235  1029  9D 36 D8              STA $D836,X
+00236  102C  C9 0C                 CMP #$0C
+00237  102E  D0 F6                 BNE LOOP3
+00238  1030             
+00239  1030                        ; MOVE CURSOR TO LINE 4
+00240  1030  A9 03                 LDA #$03
+00241  1032  85 D6                 STA $00D6
+00242  1034             
+00243  1034  60                    RTS
+00244  1035             MESSAGE
+00245  1035  08 05 0C              TEXT 'HELLO WORLD!'
+00246  1041             
+00247  1041             ;
+00248  1041             *=$0801
+00249  0801  0C 08 0A              BYTE $0C, $08, $0A, $00, $9E, $20
+00250  0807  34 30 39              BYTE $34, $30, $39, $36, $00, $00
+00251  080D  00                    BYTE $00
+00252  080E             
+00253  080E             *=$1000
+00254  1000             
+00255  1000             COUNTER    = $FB ; A ZEROPAGE ADDRESS TO BE USED AS A COUNTER (ONLY FB TO FE ARE UNUSED)
+00256  1000             
+00257  1000             FLASH
+00258  1000             
+00259  1000  A9 00                 LDA #$00    ; RESET
+00260  1002  85 FB                 STA COUNTER ; COUNTER
+00261  1004             
+00262  1004  78                    SEI       ; ENABLE INTERRUPTS
+00263  1005             
+00264  1005  A9 FB      LOOP1      LDA #$FB  ; WAIT FOR VERTICAL RETRACE
+00265  1007  CD 12 D0   LOOP2      CMP $D012 ; UNTIL IT REACHES 251TH RASTER LINE ($FB)
+00266  100A  D0 FB                 BNE LOOP2 ; WHICH IS OUT OF THE INNER SCREEN AREA
+00267  100C             
+00268  100C  E6 FB                 INC COUNTER ; INCREASE FRAME COUNTER
+00269  100E  A5 FB                 LDA COUNTER ; CHECK IF COUNTER
+00270  1010  C9 32                 CMP #$32    ; REACHED 50
+00271  1012  D0 07                 BNE OUT     ; IF NOT, PASS THE COLOR CHANGING ROUTINE
+00272  1014             
+00273  1014  A9 00                 LDA #$00    ; RESET
+00274  1016  85 FB                 STA COUNTER ; COUNTER
+00275  1018             
+00276  1018  EE 21 D0              INC $D021 ; INCREASE BACKGROUND COLOR
+00277  101B             OUT
+00278  101B  AD 12 D0              LDA $D012 ; MAKE SURE WE REACHED
+00279  101E  CD 12 D0   LOOP3      CMP $D012 ; THE NEXT RASTER LINE SO NEXT TIME WE
+00280  1021  F0 FB                 BEQ LOOP3 ; SHOULD CATCH THE SAME LINE NEXT FRAME
+00281  1023             
+00282  1023  4C 05 10              JMP LOOP1 ; JUMP TO MAIN LOOP
+00283  1026             
+00284  1026             *=$0801
+00285  0801             
+00286  0801             START
+00287  0801  A9 00                 LDA #$00
+00288  0803             LOOP       
+00289  0803  AE B2 10              LDX DX
+00290  0806  38                    SEC
+00291  0807  E9 01                 SBC #1
+00292  0809  8D B2 10              STA DX
+00293  080C  4C 03 08              JMP LOOP
+00294  080F             
+00295  080F             
+00296  080F  01         DX         BYTE $01
+00297  0810             
+
+******* 25 Label(s) *******
+bouncex = $106C 
+bouncey = $1090 
+clear = $1000 
+dx = $080F 
+dy = $10B3 
+flash = $1000 
+flipbit9 = $103A 
+goingleft = $1045 
+left = $1058 
+leftorright = $1051 
+loop = $0803 
+loop0 = $10A2 
+loop1 = $1004 
+loop1 = $1005 
+loop2 = $1007 
+loop3 = $101E 
+message = $1035 
+out = $101B 
+right = $1062 
+showball = $1000 
+start = $0801 
+updatex = $1021 
+updatey = $107B 
+waitfornextline = $109F 
+xover = $1035 
+
+******* 11 Unused label(s) *******
+clear
+dx
+flash
+left
+loop1
+loop1
+loop2
+loop3
+showball
+showball
+start
+
+******* 2 Variable(s) *******
+counter  = $00FB
+tgt_c64  = $0001
+******* 1 Unused variables(s) *******
+tgt_c64
+

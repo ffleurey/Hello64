@@ -1,0 +1,1254 @@
+00001  0000                        ;BEGIN ------------------------------------------------------------------------------
+00002  0001                        ;
+00003  0001                        ; MOVEWORKS360//LINEOFFIRE (EX. SNAKED)
+00004  0001                        ; (C)FEB,MAR,APR,MAY,JUNE 2011,MAR2012
+00005  0001                        ; WERTSTAHL@YAHOO.DE -.- WERTSTAHL/G¤P
+00006  0001                        ;
+00007  0001                        ; THIS IS A SPECIALLY MODIFIED EXCLUSIVE
+00008  0001                        ; VERSION FOR THE INCLUSION IN
+00009  0001                        ; CBM PROGRAM STUDIO!
+00010  0001                        ;
+00011  0001                        ; C=64 AUTONOMOUS TEXT PIXEL ENGINE
+00012  0001                        ; SUPER OLDSCHOOL CODE!!
+00013  0001                        ;
+00014  0001                        ; DOCUMENTATION LANGUAGE: ENGLISH
+00015  0001                        ;
+00016  0001                        ; EDITOR: CBM PROGRAM STUDIO (ASSEMBLER SOURCECODE)
+00017  0001             
+00018  0001             
+00019  0001                        ; WARNING!
+00020  0001                        ; IF YOU ADD CODE, MAKE SURE TO CHANGE THE TABLE BANK FOR COORDX (SEE LINE 685)
+00021  0001                        ; OR ELSE: CHAOS AND DESTRUCTION!
+00022  0001             
+00023  0001             
+00024  0001                        ; NOTE: THIS CODE IS FOR EXCERCISE AND EDUCATION PURPOSES ONLY.
+00025  0001                        ; ONLY USE THIS IN YOUR PRODUCT WITH PROPER PERMISSION FROM THE AUTHOR.
+00026  0001                        ; PLEASE GIVE CREDIT. THANK YOU!
+00027  0001             
+00028  0001             
+00029  0001                        ;$30 CURRENTVEC            TEMP
+00030  0001                        ;$31 CURRENTY              TEMP
+00031  0001                        ;$32 KOORDINATE LO WERT    TEMP
+00032  0001                        ;$33 KOORDINATE HI WERT    TEMP
+00033  0001                        ;$34 POINTER               RESERVED!!
+00034  0001                        ;$35 CURRENTX              TEMP
+00035  0001                        ;$36 NEWX                  TEMP
+00036  0001                        ;$37 NEWY                  TEMP
+00037  0001                        ;$60                       TEMP
+00038  0001                        ;$61                       TEMP
+00039  0001                        ;$64                       TEMP
+00040  0001                        ;$65                       TEMP
+00041  0001                        
+00042  0001                        ; WARNING! CURRENTLY, THESE ZPS ARE MODIFIED IN THE IDLE LOOP. ITS NOT A GOOD
+00043  0001                        ; IDEA TO MODIFY THEM IN THE IRQ NOW, TOO!
+00044  0001             
+00045  0001             
+00046  0001             
+00047  0001             COLORDELAY = #$20  ;INDICATES HOW LONG TO WAIT UNTIL THE COLOR-PALETTE IS SWITCHED
+00048  0001             
+00049  0001             
+00050  0001             *=$0801    
+00051  0801  0C 08 01              BYTE    $0C,$08,$01,$00,$9E,$34,$30,$39,$36,$00,$00,$00,$00,$00  ; 1 SYS 4096       ;BASIC LOADER
+00052  080F             
+00053  080F             
+00054  080F             *=$1000
+00055  1000  78                    SEI
+00056  1001             
+00057  1001  A9 00                 LDA #$00
+00058  1003  8D 21 D0              STA $D021
+00059  1006  8D 20 D0              STA $D020
+00060  1009  20 B4 12              JSR CLS                 ; CLEAR SCREEN
+00061  100C             
+00062  100C  20 D6 12              JSR MAKETAB             ; CREATE ADRESS TABLE
+00063  100F  20 FA 12              JSR CREATEYVECTORS      ; VEKTORTABELLEADRESSEN ANLEGEN
+00064  1012  A9 00                 LDA #$00                ; DEACTIVATE
+00065  1014  8D 7F 12              STA COLFINACT           ; COLORFADE (WILL SELF-ENABLE LATER)
+00066  1017  8D BF 11              STA IVANACT             ; VECTOR-ANGLE MODIFICATION (WILL SELF-ENABLE LATER)
+00067  101A             
+00068  101A  20 1E 13              JSR FLUSHMATRX          ; FILL MATRIXES WITH DEAD PIXELS
+00069  101D             
+00070  101D  20 5E 13              JSR CREATEPALETTE       ; CREATE PALETTE ADRESSES
+00071  1020  20 FB 11              JSR PALCOP              ; COPY FIRST PALETTE INTO WORKING SPACE
+00072  1023             
+00073  1023  20 3A 13              JSR INVERTCHAR          ; INVERT CHARSET
+00074  1026  20 2F 13              JSR SETCHAR             ; SET CHARSET AND BASE SCREEN
+00075  1029                        
+00076  1029  A9 66                 LDA #<MAINLOOP          ; SET IRQ BRANCHES
+00077  102B  8D 14 03              STA $0314
+00078  102E  A0 10                 LDY #>MAINLOOP
+00079  1030  8C 15 03              STY $0315
+00080  1033             
+00081  1033  A9 E8                 LDA #$E8                ; SET RASTERLINE FOR IRQ
+00082  1035  8D 12 D0              STA $D012
+00083  1038  A9 7F                 LDA #$7F
+00084  103A  8D 0D DC              STA $DC0D
+00085  103D  A9 1B                 LDA #$1B                ; SHOW NORMAL SINGLECOLOR SCREEN
+00086  103F  8D 11 D0              STA $D011
+00087  1042  A9 01                 LDA #$01
+00088  1044  8D 1A D0              STA $D01A
+00089  1047  58                    CLI
+00090  1048             
+00091  1048             ;----------------------------------------------------------------------------------------------------------------------------------
+00092  1048             
+00093  1048             
+00094  1048  AE 84 10   IDLE       LDX STARTPOS            ; SCREENPOS X (40 POSITIONS #$0-#$28) IN X
+00095  104B  AC 85 10              LDY HUPOS               ; SCREENPOS Y (28 POSITIONS #$0-#$1C) IN Y
+00096  104E                        ; THE ACTUAL WORKING AREA CAN BE LIMITED BY TABLES STOPX AND STOPY
+00097  104E             
+00098  104E  AD 86 10              LDA MODPOS              ; VECTOR ANGLE (WILL BE MODIFIED BY CHBEHAVE)
+00099  1051  20 87 10              JSR PUSH                ; PUSH NEW PIXEL ON STACK
+00100  1054                        ; IF NO FREE PIXEL IS FOUND, AFTER 255 PIXELS ONE THATS STILL ALIVE WILL BE REPLACED
+00101  1054             
+00102  1054  20 AB 10              JSR STACKSCAN           ; MAIN ROUTINE: PROCESS STACKED PIXELS
+00103  1057             
+00104  1057  20 80 12              JSR COLFIN              ; FADE COLOR RAM COLORS
+00105  105A             
+00106  105A  20 7D 11              JSR CHBEHAVE            ; CHANGE GENERAL START DIRECTION GRADUALLY
+00107  105D  20 C0 11              JSR WOBBLA              ; CHANGE DIRECTION DURING MOVEMENT
+00108  1060  20 F1 11              JSR SWTCOL              ; SWITCH COLOR PALETTE AFTER SOME TIME
+00109  1063             
+00110  1063  4C 48 10              JMP IDLE                ; CHARS ARE NOT SO TIME CRITICAL, THATS WHY WE PUT THEM IN THE IDLE LOOP.
+00111  1066             
+00112  1066             
+00113  1066             ;----------------------------------------------------------------------------------------------------------------------------------
+00114  1066             ;@                  
+00115  1066             
+00116  1066                        ; MAIN LOOP / MAIN IRQ
+00117  1066             
+00118  1066  EE 19 D0   MAINLOOP   INC $D019
+00119  1069  AE 12 D0              LDX $D012
+00120  106C  EC 12 D0   STABELIZE  CPX $D012
+00121  106F  F0 FB                 BEQ STABELIZE
+00122  1071             
+00123  1071             
+00124  1071  EE 20 D0              INC $D020
+00125  1074             
+00126  1074  A2 00                 LDX #$00
+00127  1076  CA         WASTE      DEX
+00128  1077  D0 FD                 BNE WASTE
+00129  1079             
+00130  1079  CE 20 D0              DEC $D020
+00131  107C             
+00132  107C  A9 E8                 LDA #$E8
+00133  107E  8D 12 D0              STA $D012               ; SET RASTER POSITION FOR NEXT INTERRUPT
+00134  1081  4C 7E EA              JMP $EA7E               ; AND RETURN FROM INTERRUPT
+00135  1084             
+00136  1084             
+00137  1084  13         STARTPOS   BYTE $13                ; SCREEN X POSITION. CURRENTLY NOT MODIFIED!
+00138  1085  0E         HUPOS      BYTE $0E                ; SCREEN Y POSITION. CURRENTLY NOT MODIFIED!
+00139  1086  01         MODPOS     BYTE $01                ; ANGLE OF VECTOR. CURRENTLY MODIFIED BY CHBEHAVE
+00140  1087             
+00141  1087             
+00142  1087             
+00143  1087             ;@                  
+00144  1087             ;----------------------------------------------------------------------------------------------------------------------------------
+00145  1087             
+00146  1087             
+00147  1087             ;------------------ PUSH COORDINATES TO STACK AND ENABLE ONE PIXEL ---------------------------------
+00148  1087             
+00149  1087                        ; X CONTAINS X
+00150  1087                        ; Y CONTAINS Y
+00151  1087                        ; A CONTAINS ANGLE FOR VECTOR $0-$FE --> $0 = 0° AND 360°, $40 = 90°, $80= 180°, $C0 = 270° AND SO ON...
+00152  1087             
+00153  1087                        ; IMPORTANT: $FF = NO ANGLE, DEAD PIXEL!
+00154  1087             
+00155  1087  86 35      PUSH       STX $35    ;CURRENTX
+00156  1089  84 31                 STY $31    ;CURRENTY
+00157  108B  85 30                 STA $30    ;CURRENTVEC          ;STORE ANGLE IN CURRENTVEC
+00158  108D                        
+00159  108D  A6 34                 LDX $34    ;POINTER             ;LOAD LAST KNOWN POINTERPOSITION, BEGIN SCAN FROM THERE
+00160  108F  E8         PUSHIT     INX
+00161  1090  BD 00 16              LDA COORDX,X
+00162  1093  C9 FF                 CMP #$FF
+00163  1095  D0 F8                 BNE PUSHIT
+00164  1097             
+00165  1097  A5 35                 LDA $35    ;CURRENTX
+00166  1099  9D 00 16              STA COORDX,X                    ;STORE NUMERIC X VALUE
+00167  109C  A5 31                 LDA $31    ;CURRENTY
+00168  109E  9D 00 17              STA COORDY,X                    ;STORE NUMERIC Y VALUE
+00169  10A1  A5 30                 LDA $30    ;CURRENTVEC
+00170  10A3  9D 00 18              STA MATRXVAL,X                  ;STORE ANGLE TO MATRIX
+00171  10A6             
+00172  10A6  86 34                 STX $34
+00173  10A8  A6 35                 LDX $35
+00174  10AA                        
+00175  10AA  60                    RTS
+00176  10AB             
+00177  10AB             ;---------------------------------------- STACKSCAN --------------------------------------------
+00178  10AB             
+00179  10AB                        ; SINCE 30.11.2011: STACKSCAN AND PROCESS ARE NOW CONNECTED
+00180  10AB                        ; I HAVE REFRAINED FROM TRYING MATRIX SWITCHING FOR FASTER READS AND WRITES INTO THE MATRIX
+00181  10AB                        ; BECAUSE IT WOULD ONLY IMPROVE THE SPEED IF ONLY FEW PIXELS ARE ON THE SCREEN
+00182  10AB                        ; MANY PIXELS ON THE SCREEN WOULD BE MUCH SLOWER WHILE USING MATRIX SWITCHING
+00183  10AB             
+00184  10AB             
+00185  10AB  A2 00      STACKSCAN  LDX #$00                        ;STACKPOINTER RESET
+00186  10AD  A9 FF                 LDA #$FF                        ;EMPTY REFERENCE BYTE
+00187  10AF  DD 00 16   CHECKSTACK CMP COORDX,X                    ;POSITION EMPTY?
+00188  10B2  D0 07                 BNE FOUNDONE                    ;NO, PROCESS IT
+00189  10B4  E8         RECHECKS   INX                             ;STACKPOINTER+
+00190  10B5  D0 F8                 BNE CHECKSTACK                  ;NOT FINISHED, LOOP
+00191  10B7  60                    RTS                             ;ALL PIXELS SCANNED (OR STACK WAS EMPTY)
+00192  10B8             
+00193  10B8  AD A8 21              LDA INITVALS
+00194  10BB  86 34      FOUNDONE   STX $34    ;POINTER             ;SAVE STACKPOINTER
+00195  10BD  BD 00 18              LDA MATRXVAL,X                  ;GET VALUES FOR VECTOR, X AND Y
+00196  10C0  85 30                 STA $30    ;CURRENTVEC
+00197  10C2  BD 00 16              LDA COORDX,X
+00198  10C5  85 35                 STA $35    ;CURRENTX
+00199  10C7  BD 00 17              LDA COORDY,X
+00200  10CA  85 31                 STA $31    ;CURRENTY
+00201  10CC                        
+00202  10CC  A9 FF                 LDA #$FF                        ; DESTROY PIXEL IN STACK
+00203  10CE  9D 00 16              STA COORDX,X                    ; BECAUSE ITS IN MOVEMENT
+00204  10D1             
+00205  10D1                        ;-------------------------- BEWEGUNG ---------------------------------------
+00206  10D1             
+00207  10D1                        ;$32 COORDINATE LO VALUE
+00208  10D1                        ;$33 COORDINATE HI VALUE
+00209  10D1                        ;$60 GRADIENTTABLE LO
+00210  10D1                        ;$61 GRADIENTTABLE HI
+00211  10D1                        ;$64 TARGET LO
+00212  10D1                        ;$65 TARGET HI
+00213  10D1             
+00214  10D1  A4 31      PROCESS    LDY $31    ;CURRENTY            ;LOAD COORDINATE Y
+00215  10D3  B9 88 15              LDA WHEREHI,Y                   ;AND TRANSLATE
+00216  10D6  85 33                 STA $33                         ;
+00217  10D8  B9 6E 15              LDA WHERELO,Y                   ;
+00218  10DB  85 32                 STA $32                         ;TO START ADRESS OF SCREENLINE
+00219  10DD                        
+00220  10DD  A5 35                 LDA $35   ;CURRENTX             ;LOAD COORDINATE X
+00221  10DF  18                    CLC                             ;CLEAR CARRY
+00222  10E0  65 32                 ADC $32                         ;ADD X OFFSET
+00223  10E2  90 02                 BCC OUTRANS2                    ;BLOCKWRAP?
+00224  10E4                        ;CORRECT ADRESS
+00225  10E4  E6 33                 INC $33                         ;NOW IN CURRENTHI ($33) AND CURRENTLO ($32)
+00226  10E6  85 32      OUTRANS2   STA $32                         ;CURRENT ADRESS OF THE Y-LINE IN ZP
+00227  10E8             
+00228  10E8  AD 7F 12              LDA COLFINACT                   ;NO GFX ACTION IF
+00229  10EB  D0 03                 BNE NOPIXKILL                   ;COLORFADE IS ON
+00230  10ED             
+00231  10ED                        ;DESTROY
+00232  10ED  A8                    TAY                             ;GRAPHICS CONTENT
+00233  10EE  91 32                 STA ($32),Y                     ;AT OLD POSITION
+00234  10F0             
+00235  10F0                        ;--------------------------------- CHECK Y SLOPE + CALCULATE Y ------------------------
+00236  10F0             
+00237  10F0  A4 30      NOPIXKILL  LDY $30    ;CURRENTVEC          ;LOAD CURRENT ANGLE
+00238  10F2  BE 28 1D              LDX TRANSLATEY,Y                ;THE ADVANCE-SEQUENCE FOR THIS ANGLE IS IN WHICH LINE OF THE TABLE?
+00239  10F5  BD 00 19              LDA VECTSLO,X                   ;LOAD THE START-ADRESS
+00240  10F8  85 60                 STA $60                         ;OF THE ADVANCE-SEQUENCE-LINE
+00241  10FA  BD 20 19              LDA VECTSHI,X                   ;IN THE VECTOR TABLE
+00242  10FD  85 61                 STA $61                         ;
+00243  10FF             
+00244  10FF  A4 35                 LDY $35    ;CURRENTX            ;LOAD OLD X VALUE (!) FOR Y SLOPE-OFFSET TO GET VARIATIONS
+00245  1101  A6 31                 LDX $31    ;CURRENTY            ;LOAD OLD Y VALUE (!) IN X FOR CALCULATION
+00246  1103  B1 60                 LDA ($60),Y                     ;GET SLOPE VALUE (0 OR 1) OUT OF 24 VALUES VIA Y FROM $40/2
+00247  1105                        ;NO SLOPE?
+00248  1105  F0 09                 BEQ NOPLUS                      ;THEN DONT CHANGE Y
+00249  1107  A4 30                 LDY $30    ;CURRENTVEC          ;LOAD ANGLE
+00250  1109  B9 68 20              LDA COMMANDSY,Y                 ;LOAD ANGLE-SPECIFIC COMMAND (PLUS OR MINUS) FROM TABLE
+00251  110C  8D 0F 11              STA SELFMODY                    ;AND MODIFY THE CODE
+00252  110F  EA         SELFMODY   NOP                             ;SO HERE WE GET INX, DEX OR NOP FROM THE TABLE, DEPENDING ON THE ANGLE
+00253  1110  86 37      NOPLUS     STX $37   ;NEWY                 ;WRITE TARGET Y
+00254  1112  BD 68 1F              LDA STOPY,X                     ;READ STOPBITTABLE
+00255  1115                        ;ARE WE STILL ALLOWED TO BE HERE?
+00256  1115  D0 5F                 BNE PIXDECEASED                 ;NOPE, PIXEL DIES
+00257  1117             
+00258  1117                        ;--------------------------------- CHECK Y SLOPE + CALCULATE Y ------------------------
+00259  1117             
+00260  1117  A4 30      NOYSTOP    LDY $30    ;CURRENTVEC          ;LOAD CURRENT ANGLE
+00261  1119  BE 68 1D              LDX TRANSLATEX,Y                ;THE ADVANCE-SEQUENCE FOR THIS ANGLE IS IN WHICH LINE OF THE TABLE?
+00262  111C  BD 00 19              LDA VECTSLO,X                   ;LOAD THE START-ADRESS
+00263  111F  85 60                 STA $60                         ;OF THE ADVANCE-SEQUENCE-LINE
+00264  1121  BD 20 19              LDA VECTSHI,X                   ;IN THE VECTOR TABLE
+00265  1124  85 61                 STA $61                         ;
+00266  1126             
+00267  1126  A4 31                 LDY $31    ;CURRENTY            ;LOAD OLD Y VALUE (!) FOR X SLOPE-OFFSET TO GET VARIATIONS
+00268  1128  A6 35                 LDX $35    ;CURRENTX            ;LOAD X OLD FOR CALCULATIONS
+00269  112A  B1 60                 LDA ($60),Y                     ;GET SLOPE VALUE (0 OR 1) OUT OF 24 VALUES VIA Y FROM $40/2
+00270  112C                        ;NO SLOPE?
+00271  112C  F0 09                 BEQ NOPLUS2                     ;THEN DONT CHANGE X
+00272  112E  A4 30                 LDY $30    ;CURRENTVEC          ;LOAD ANGLE
+00273  1130  B9 A8 20              LDA COMMANDSX,Y                 ;LOAD ANGLE-SPECIFIC COMMAND (PLUS OR MINUS) FROM TABLE
+00274  1133  8D 36 11              STA SELFMODX                    ;AND MODIFY THE CODE
+00275  1136  EA         SELFMODX   NOP                             ;SO HERE WE GET INX, DEX OR NOP FROM THE TABLE, DEPENDING ON THE ANGLE
+00276  1137  86 36      NOPLUS2    STX $36    ;NEWX                ;WRITE TARGET X
+00277  1139  BD 68 1E              LDA STOPX,X                     ;READ STOPBITTABLE
+00278  113C                        ;ARE WE STILL ALLOWED TO BE HERE?
+00279  113C  D0 38                 BNE PIXDECEASED                 ;NOPE, PIXEL DIES
+00280  113E             
+00281  113E                        ;---------------- CALC NEW TARGET ADRESS  --------------------------------------
+00282  113E             
+00283  113E  A6 37      NOXSTOP    LDX $37    ;NEWY                ;LOAD NEW Y
+00284  1140  BD 6E 15              LDA WHERELO,X                   ;TRANSLATE TO SCREEN ADRESS
+00285  1143  85 64                 STA $64                         ;
+00286  1145  BD 88 15              LDA WHEREHI,X                   ;
+00287  1148  85 65                 STA $65                         ;
+00288  114A             
+00289  114A  A4 36                 LDY $36    ;NEWX                ;LOAD X OFFSET
+00290  114C             
+00291  114C  A5 30                 LDA $30    ;CURRENTVEC          ;LOAD OLD ANGLE
+00292  114E             
+00293  114E                        ;---------------------------------------------------------------------------------
+00294  114E             
+00295  114E  AE BF 11              LDX IVANACT                     ;IS THE WOBBLE ON?
+00296  1151  F0 03                 BEQ NOIVAN                      ;NO, SO DONT CHANGE THE DIRECTION
+00297  1153  18                    CLC
+00298  1154  69 03      IVAN       ADC #$03                        ;CHANGE THE DIRECTION BY A VALUE THAT WILL BE MODIFIED EXTERNALLY
+00299  1156  85 30      NOIVAN     STA $30                         ;STORE THE NEW ANGLE
+00300  1158  91 64                 STA ($64),Y                     ;AND WRITE THE PIXEL, CONTAINING THE ANGLE, TO THE SCREEN  <<-- THERE IS THE TRICK
+00301  115A             
+00302  115A                        ;---------------------------------------------------------------------------------
+00303  115A             
+00304  115A  A5 65                 LDA $65                         ;TRANSLATE
+00305  115C  18                    CLC
+00306  115D  69 D4                 ADC #$D4                        ;NEW TARGET ADRESS TO COLOR RAM
+00307  115F  85 65                 STA $65
+00308  1161  A9 01      CURCOL     LDA #$01                        ;LOAD CURRENTLY FIRST COLOR OF THE PALETTE (IS MODIFIED EXTERNALLY)
+00309  1163             
+00310  1163  91 64                 STA $(64),Y                     ;AND WRITE THE COLOR TO THE COLOR ROM
+00311  1165             
+00312  1165                        ;------------------------ STORE THESE NEW VALUES IN MATRIX  ----------------------
+00313  1165             
+00314  1165  A6 34      NOPRINT    LDX $34    ;POINTER
+00315  1167  A5 36                 LDA $36    ;NEWX
+00316  1169  9D 00 16              STA COORDX,X
+00317  116C  A5 37                 LDA $37    ;NEWY
+00318  116E  9D 00 17              STA COORDY,X
+00319  1171  A5 30                 LDA $30    ;CURRENTVEC
+00320  1173  9D 00 18              STA MATRXVAL,X
+00321  1176             
+00322  1176                        ;---------------------------------------------------------------------------------
+00323  1176             
+00324  1176  A6 34      PIXDECEASED LDX $34    ;POINTER             ; LOAD THE POINTER AGAIN
+00325  1178  A9 FF                 LDA #$FF                        ; LOAD THE REFERENCE DEAD PIXEL AGAIN
+00326  117A  4C B4 10              JMP RECHECKS
+00327  117D             
+00328  117D             ;@                  
+00329  117D             ;----------------------------------------------------------------------------------------------------------------------------
+00330  117D             ;-----------------------------SUBROUTINES WITH RTS --------------------------------------------------------------------------
+00331  117D             
+00332  117D             
+00333  117D                        ; THIS ROUTINE MODIFIES THE ANGLE OF THE VECTOR THAT IS BEING PUSHED TO THE STACK.
+00334  117D                        ; LATER MODIFICATIONS MAKE IT MOVE IN A PATTERN THATS CALLED "CRAZY IVAN"
+00335  117D             
+00336  117D  AD 86 10   CHBEHAVE   LDA MODPOS            ;COLOURWHEEL!
+00337  1180  69 00      IVAN2      ADC #$00
+00338  1182  8D 86 10              STA MODPOS
+00339  1185             
+00340  1185  CE 89 11   WOBBLA2    DEC SWTDELAX+1
+00341  1188  A9 01      SWTDELAX   LDA #$01
+00342  118A  C9 FF                 CMP #$FF
+00343  118C  D0 30                 BNE WOBEXT
+00344  118E  A9 03                 LDA #$03
+00345  1190  8D 89 11              STA SWTDELAX+1
+00346  1193             
+00347  1193  EE 97 11              INC WOBBLABL2+1
+00348  1196  A9 00      WOBBLABL2  LDA #$00
+00349  1198  C9 7F                 CMP #$7F
+00350  119A  D0 05                 BNE NOWOB2
+00351  119C  A9 00                 LDA #$00
+00352  119E  8D 97 11              STA WOBBLABL2+1
+00353  11A1             
+00354  11A1  EE A5 11   NOWOB2     INC WOBBLOR2+1
+00355  11A4  A2 00      WOBBLOR2   LDX #$00
+00356  11A6  BD 0A 15              LDA WOBBLE,X
+00357  11A9  C9 FF                 CMP #$FF
+00358  11AB  D0 05                 BNE WOBBLIT2
+00359  11AD  A2 00                 LDX #$00
+00360  11AF  8E A5 11              STX WOBBLOR2+1
+00361  11B2  BD 0A 15   WOBBLIT2   LDA WOBBLE,X
+00362  11B5  8D 81 11              STA IVAN2+1
+00363  11B8  BD 22 15              LDA WOBBLE2,X
+00364  11BB  8D 80 11              STA IVAN2
+00365  11BE  60         WOBEXT     RTS
+00366  11BF             
+00367  11BF             
+00368  11BF             ;----------------------------------- VECTOR-WOBBLE-ROUTINE -------------------------------------
+00369  11BF             
+00370  11BF  EA         IVANACT    NOP
+00371  11C0  EE C9 11   WOBBLA     INC WOBBLABLA+1
+00372  11C3  A9 01                 LDA #$01
+00373  11C5  8D BF 11              STA IVANACT
+00374  11C8  A9 00      WOBBLABLA  LDA #$00
+00375  11CA  C9 7F                 CMP #$7F
+00376  11CC  D0 05                 BNE NOWOB
+00377  11CE  A9 00                 LDA #$00
+00378  11D0  8D C9 11              STA WOBBLABLA+1
+00379  11D3             
+00380  11D3  EE D7 11   NOWOB      INC WOBBLOR+1
+00381  11D6  A2 00      WOBBLOR    LDX #$00
+00382  11D8  BD 0A 15              LDA WOBBLE,X
+00383  11DB  C9 FF                 CMP #$FF
+00384  11DD  D0 05                 BNE WOBBLIT
+00385  11DF  A2 00                 LDX #$00
+00386  11E1  8E D7 11              STX WOBBLOR+1
+00387  11E4  BD 0A 15   WOBBLIT    LDA WOBBLE,X
+00388  11E7  8D 55 11              STA IVAN+1
+00389  11EA  BD 22 15              LDA WOBBLE2,X
+00390  11ED  8D 54 11              STA IVAN
+00391  11F0  60                    RTS
+00392  11F1             
+00393  11F1             
+00394  11F1             ;----------- SWITCHING OF THE CURRENT FADING TABLES --------------
+00395  11F1                        
+00396  11F1  CE F5 11   SWTCOL     DEC SWTDELAY+1      ;COUNT DOWN DELAY
+00397  11F4  A9 FF      SWTDELAY   LDA #$FF            ;OVERFLOW?
+00398  11F6  C9 FF                 CMP #$FF
+00399  11F8  F0 01                 BEQ PALCOP          ;YES, -> COPY NEW PALETTE
+00400  11FA  60                    RTS
+00401  11FB                        
+00402  11FB  A9 20      PALCOP     LDA COLORDELAY
+00403  11FD  8D F5 11              STA SWTDELAY+1
+00404  1200             
+00405  1200  A9 00      PALETTECNT LDA #$00            ;LOAD PALETTEPOINTER
+00406  1202  0A                    ASL
+00407  1203  AA                    TAX
+00408  1204  BD 82 13              LDA PALETTELOHI,X   ;ADRESS OF CURRENT PALETTE
+00409  1207  8D 33 12              STA PADR1+1         ;WRITE LOWBYTE
+00410  120A  8D 3B 12              STA PADR2+1
+00411  120D  E8                    INX
+00412  120E  BD 82 13              LDA PALETTELOHI,X   ;ADRESS OF CURRENT PALETTE
+00413  1211  8D 34 12              STA PADR1+2         ;WRITE HIBYTE
+00414  1214  8D 3C 12              STA PADR2+2
+00415  1217             
+00416  1217  EE 01 12              INC PALETTECNT+1    ;PALETTEPOINTER +1
+00417  121A  A9 07                 LDA MAXPALETTES     ;LAST PALETTE?
+00418  121C  CD 01 12              CMP PALETTECNT+1
+00419  121F  D0 05                 BNE COLORSORT
+00420  1221  A9 00                 LDA #$00            ;YUP, RESET.
+00421  1223  8D 01 12              STA PALETTECNT+1
+00422  1226             
+00423  1226                        ;--- COPY GRADIENTS FROM PALETTE ------------------------------
+00424  1226             
+00425  1226  A2 10      COLORSORT  LDX #$10
+00426  1228  A9 00                 LDA #$00
+00427  122A  9D 9A 13   FLUSHCOLORS STA COLMATRX,X
+00428  122D  CA                    DEX
+00429  122E  D0 FA                 BNE FLUSHCOLORS
+00430  1230             
+00431  1230  A2 01                 LDX #$01
+00432  1232  BD 9A 14   PADR1      LDA PALETTE,X
+00433  1235  8D 62 11              STA CURCOL+1
+00434  1238  A8                    TAY
+00435  1239  E8                    INX
+00436  123A             MORECS     
+00437  123A  BD 9A 14   PADR2      LDA PALETTE,X
+00438  123D  99 9A 13              STA COLMATRX,Y
+00439  1240  A8                    TAY
+00440  1241  F0 04                 BEQ COLORFLL
+00441  1243  E8                    INX
+00442  1244  4C 3A 12              JMP MORECS
+00443  1247                        
+00444  1247  A2 00      COLORFLL   LDX #$00            ;SO ONE CAN READY COMFORTABLY FROM $D800 +++ WITHOUT
+00445  1249  BD 9A 13   COLFLLP    LDA COLMATRX,X      ;HAVING TO GIVE A FUNK ABOUT THE RANDOMIZED
+00446  124C  9D AA 13              STA COLMATRX1,X     ;HIGH NYBBLE, THE PALETTE MUST BE REPEATED 16 TIMES
+00447  124F  9D BA 13              STA COLMATRX2,X     ;BECAUSE AN AND #$0F WOULD JUST BE A TERRIBLE
+00448  1252  9D CA 13              STA COLMATRX3,X     ;WASTE OF PROCESSOR TIME
+00449  1255  9D DA 13              STA COLMATRX4,X
+00450  1258  9D EA 13              STA COLMATRX5,X
+00451  125B  9D FA 13              STA COLMATRX6,X
+00452  125E  9D 0A 14              STA COLMATRX7,X
+00453  1261  9D 1A 14              STA COLMATRX8,X
+00454  1264  9D 2A 14              STA COLMATRX9,X
+00455  1267  9D 3A 14              STA COLMATRXA,X
+00456  126A  9D 4A 14              STA COLMATRXB,X
+00457  126D  9D 5A 14              STA COLMATRXC,X
+00458  1270  9D 6A 14              STA COLMATRXD,X
+00459  1273  9D 7A 14              STA COLMATRXE,X
+00460  1276  9D 8A 14              STA COLMATRXF,X
+00461  1279  E8                    INX
+00462  127A  E0 10                 CPX #$10
+00463  127C  D0 CB                 BNE COLFLLP
+00464  127E  60                    RTS
+00465  127F             
+00466  127F             ;---------------------- FADE THE COLORS ACCORDING TO THE TABLE  -----------------------------------
+00467  127F             
+00468  127F  EA         COLFINACT  NOP
+00469  1280  A9 01      COLFIN     LDA #$01
+00470  1282  8D 7F 12              STA COLFINACT   ;ROUTINE CONFIRMS ACTIVITY
+00471  1285  A2 00                 LDX #$00
+00472  1287             
+00473  1287  BC 00 D8   D8READ     LDY $D800,X
+00474  128A  B9 9A 13              LDA COLMATRX,Y
+00475  128D  9D 00 D8              STA $D800,X
+00476  1290             
+00477  1290  BC 00 D9              LDY $D900,X
+00478  1293  B9 9A 13              LDA COLMATRX,Y
+00479  1296  9D 00 D9              STA $D900,X
+00480  1299             
+00481  1299  BC 00 DA              LDY $DA00,X
+00482  129C  B9 9A 13              LDA COLMATRX,Y
+00483  129F  9D 00 DA              STA $DA00,X
+00484  12A2             
+00485  12A2  E8                    INX
+00486  12A3  D0 E2                 BNE D8READ
+00487  12A5             
+00488  12A5  BC 00 DB   DANEXT     LDY $DB00,X
+00489  12A8  B9 9A 13              LDA COLMATRX,Y
+00490  12AB  9D 00 DB              STA $DB00,X
+00491  12AE             
+00492  12AE  E8                    INX
+00493  12AF  E0 E8                 CPX #$E8
+00494  12B1  D0 F2                 BNE DANEXT
+00495  12B3  60                    RTS
+00496  12B4             
+00497  12B4             
+00498  12B4             ;----------------------------------------------------------------------------------------------------------------------
+00499  12B4             ;----------------------------- INIT ROUTINES --------------------------------------------------------------------------
+00500  12B4             ;----------------------------------------------------------------------------------------------------------------------
+00501  12B4             
+00502  12B4                        ;----------- SCREEN INIT
+00503  12B4             
+00504  12B4  A0 00      CLS        LDY #$00                ; CLEAR SCREEN & COLOR
+00505  12B6  A9 00      CLR        LDA #$00
+00506  12B8  99 00 04              STA $0400,Y
+00507  12BB  99 00 05              STA $0500,Y
+00508  12BE  99 00 06              STA $0600,Y
+00509  12C1  99 E8 06              STA $06E8,Y
+00510  12C4  A9 01                 LDA #$01                ; CHAR COLOR
+00511  12C6  99 00 D8              STA $D800,Y
+00512  12C9  99 00 D9              STA $D900,Y
+00513  12CC  99 00 DA              STA $DA00,Y
+00514  12CF  99 E8 DA              STA $DAE8,Y
+00515  12D2  C8                    INY
+00516  12D3  D0 E1                 BNE CLR
+00517  12D5  60                    RTS
+00518  12D6             
+00519  12D6                        ;--------- GENERATE MATRIX ADRESS TABLES
+00520  12D6             
+00521  12D6  A9 00      MAKETAB    LDA #$00
+00522  12D8  A0 04                 LDY #$04                ;SCREEN BASE ADRESS HI
+00523  12DA  A2 00                 LDX #$00                ;SCREEN BASE ADRESS LO
+00524  12DC  8D 6E 15              STA WHERELO
+00525  12DF  8C 88 15              STY WHEREHI
+00526  12E2  E8                    INX
+00527  12E3             
+00528  12E3  18         MAKMOR     CLC
+00529  12E4  69 28                 ADC #$28                ;+28 = NEXT LINE
+00530  12E6  9D 6E 15              STA WHERELO,X
+00531  12E9  90 01                 BCC YNEXTL              ;NO ADDRESS-BREAK, CONTINUE
+00532  12EB  C8                    INY
+00533  12EC  85 40      YNEXTL     STA $40                 ;RESCUE ACCU
+00534  12EE  98                    TYA
+00535  12EF  9D 88 15              STA WHEREHI,X
+00536  12F2  A5 40                 LDA $40                 ;GET BACK ACCU
+00537  12F4  E8                    INX
+00538  12F5  E0 19                 CPX #$19                ;MAX LINES REACHED?
+00539  12F7  D0 EA                 BNE MAKMOR
+00540  12F9  60                    RTS
+00541  12FA             
+00542  12FA                        ;----------- GENERATE ADRESS TABLES FOR PIXEL VECTOR GRADIENTS
+00543  12FA             
+00544  12FA             CREATEYVECTORS 
+00545  12FA  A2 00                 LDX #$00
+00546  12FC  A9 40                 LDA #<VECTS             ;VECTOR TABLE LO
+00547  12FE  8D 00 19              STA VECTSLO
+00548  1301  A0 19                 LDY #>VECTS             ;VECTOR TABLE HI
+00549  1303  8C 20 19              STY VECTSHI
+00550  1306  E8                    INX
+00551  1307             
+00552  1307  18         MAKMOR3    CLC
+00553  1308  69 28                 ADC #$28                ;LENGHT OF A TABLE LINE IS $28 BYTES
+00554  130A  9D 00 19              STA VECTSLO,X
+00555  130D  90 01                 BCC YSTER3
+00556  130F  C8                    INY
+00557  1310  85 50      YSTER3     STA $50                 ;RESCUE ACCU
+00558  1312  98                    TYA
+00559  1313  9D 20 19              STA VECTSHI,X
+00560  1316  A5 50                 LDA $50                 ;GET BACK ACCU
+00561  1318  E8                    INX
+00562  1319  E0 1A                 CPX #$1A                ;TABLE HAS $1A LINES
+00563  131B  D0 EA                 BNE MAKMOR3
+00564  131D  60                    RTS
+00565  131E             
+00566  131E                        ;----------- FILL MATRIXES WITH DEAD PIXELS
+00567  131E             
+00568  131E  A2 00      FLUSHMATRX LDX #$00
+00569  1320  A9 FF                 LDA #$FF
+00570  1322  9D 00 16   FLLFLUSH   STA COORDX,X
+00571  1325  99 00 17              STA COORDY,Y
+00572  1328  9D 00 18              STA MATRXVAL,X
+00573  132B  E8                    INX
+00574  132C  D0 F4                 BNE FLLFLUSH
+00575  132E  60                    RTS
+00576  132F             
+00577  132F                        ;-------------- INIT CHARACTERSET
+00578  132F             
+00579  132F  AD 18 D0   SETCHAR    LDA $D018
+00580  1332  29 F1                 AND #$F1                ;#%11110001 ;KILL CHARMEM ADDR
+00581  1334  09 0C                 ORA #$0C                ;#%00000010 ;SET CHARMEM TO 3000
+00582  1336  8D 18 D0              STA $D018
+00583  1339  60                    RTS
+00584  133A             
+00585  133A                        ;-------------- CHARSET INVERTER
+00586  133A             
+00587  133A  60         INVERTCHAR RTS
+00588  133B             
+00589  133B  AD 00 30              LDA FONTZOR
+00590  133E  49 FF                 EOR #$FF
+00591  1340  8D 00 30   INVERTOO   STA FONTZOR
+00592  1343             
+00593  1343  EE 3B 13              INC INVERTCHAR+1
+00594  1346  EE 41 13              INC INVERTOO+1
+00595  1349  AD 3B 13              LDA INVERTCHAR+1
+00596  134C  C9 00                 CMP #$00
+00597  134E  D0 EA                 BNE INVERTCHAR
+00598  1350  EE 3C 13              INC INVERTCHAR+2
+00599  1353  EE 42 13              INC INVERTOO+2
+00600  1356  AD 3C 13              LDA INVERTCHAR+2
+00601  1359  C9 3E                 CMP #$3E
+00602  135B  D0 DD                 BNE INVERTCHAR
+00603  135D  60                    RTS
+00604  135E             
+00605  135E                        ;------------------------ GENERATE PALETTE ADRESSSES
+00606  135E             
+00607  135E             CREATEPALETTE 
+00608  135E  A2 00                 LDX #$00
+00609  1360  A0 00                 LDY #$00
+00610  1362  A9 9A      CP_LO      LDA #<PALETTE           ;PALETTE LOW ADRESS
+00611  1364  9D 82 13              STA PALETTELOHI,X       ;TO FIRST POSITION IN TABLE
+00612  1367  E8                    INX                     ;ADVANCE ONE STEP
+00613  1368  A9 14      CP_HI      LDA #>PALETTE           ;PALETTE HI ADRESS
+00614  136A  9D 82 13              STA PALETTELOHI,X       ;TO SECOND POSITION IN TABLE
+00615  136D  E8                    INX                     ;ADVANCE ONE STEP
+00616  136E  AD 63 13              LDA CP_LO+1             ;LOAD VALUE ADRESS LOW
+00617  1371  18                    CLC
+00618  1372  69 10                 ADC #$10                ;ADD #$10 (LENGTH OF PALETTE LINE)
+00619  1374  90 03                 BCC NOCP_HI             ;OVERFLOW?
+00620  1376  EE 69 13              INC CP_HI+1             ;YEP, BLOCKWRAP
+00621  1379  8D 63 13   NOCP_HI    STA CP_LO+1             ;WRITE BACK VALUE
+00622  137C  C8                    INY                     ;COUNTER +1
+00623  137D  C0 07                 CPY MAXPALETTES         ;ALREADY 7 PALETTES?
+00624  137F  D0 E1                 BNE CP_LO               ;NOPE, GO AGAIN!
+00625  1381  60                    RTS
+00626  1382             
+00627  1382             
+00628  1382             
+00629  1382             ;-------------------------------------------------------------------------------------------------------------------
+00630  1382             ;------------------------------------- TABLES ----------------------------------------------------------------------
+00631  1382             
+00632  1382             
+00633  1382                        ;------------------------ PALETTE-ADRESSES AUTO GENERATED --------------------------------------------
+00634  1382  00 00 00   PALETTELOHI BYTE  $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+00635  139A             
+00636  139A                        ;------------------------ PALETTE-MATRIXES AUTO GENERATED --------------------------------------------
+00637  139A                        ;HAVING 16 MATRIXES SPEEDS UP THE COLORFADE IMMENSELY, BECAUSE WE DON´T NEED TO CHECK FOR THE RANDOMIZED
+00638  139A                        ;HIGH NYBBLE OF THE COLOR RAM.
+00639  139A                        ;     00  01  02  03  04  05  06  07  08  09  0A  0B  0C  0D  0E  0F
+00640  139A  00 00 00   COLMATRX   BYTE  $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+00641  13AA  00 00 00   COLMATRX1  BYTE  $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+00642  13BA  00 00 00   COLMATRX2  BYTE  $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+00643  13CA  00 00 00   COLMATRX3  BYTE  $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+00644  13DA  00 00 00   COLMATRX4  BYTE  $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+00645  13EA  00 00 00   COLMATRX5  BYTE  $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+00646  13FA  00 00 00   COLMATRX6  BYTE  $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+00647  140A  00 00 00   COLMATRX7  BYTE  $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+00648  141A  00 00 00   COLMATRX8  BYTE  $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+00649  142A  00 00 00   COLMATRX9  BYTE  $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+00650  143A  00 00 00   COLMATRXA  BYTE  $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+00651  144A  00 00 00   COLMATRXB  BYTE  $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+00652  145A  00 00 00   COLMATRXC  BYTE  $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+00653  146A  00 00 00   COLMATRXD  BYTE  $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+00654  147A  00 00 00   COLMATRXE  BYTE  $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+00655  148A  00 00 00   COLMATRXF  BYTE  $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+00656  149A             
+00657  149A             
+00658  149A                        ;------------------------ PALETTES -------------------------------------------------------------------
+00659  149A                        ; PALETTES MUST BE SET AS GRADIENTS. MAX. 16 VALUES.
+00660  149A                        ; NO REPEATING OF COLORS! FIRST VALUE _MUST_ BE 0, LAST VALUE SHOULD BE 0.
+00661  149A  00 06 03   PALETTE    BYTE  $00,$06,$03,$01,$0F,$0C,$0B,$00,$00,$00,$00,$00,$00,$00,$00,$00 ;CHROME
+00662  14AA  00 0B 04              BYTE  $00,$0B,$04,$01,$07,$0A,$02,$09,$00,$00,$00,$00,$00,$00,$00,$00 ;MAGMA
+00663  14BA  00 05 0D              BYTE  $00,$05,$0D,$01,$03,$0E,$06,$0B,$00,$00,$00,$00,$00,$00,$00,$00 ;COBALT
+00664  14CA  00 09 08              BYTE  $00,$09,$08,$01,$0F,$0C,$0B,$00,$00,$00,$00,$00,$00,$00,$00,$00 ;CHROME
+00665  14DA  00 02 0A              BYTE  $00,$02,$0A,$01,$07,$0D,$03,$05,$0B,$00,$00,$00,$00,$00,$00,$00 ;GREENSPAN
+00666  14EA  00 06 0E              BYTE  $00,$06,$0E,$03,$01,$07,$0A,$08,$02,$00,$00,$00,$00,$00,$00,$00 ;BLUEUPREDOWN
+00667  14FA  00 0B 0C              BYTE  $00,$0B,$0C,$0F,$01,$07,$0D,$05,$00,$00,$00,$00,$00,$00,$00,$00 ;GREYUPGREENDOWN
+00668  150A             MAXPALETTES = #$07 ;REAL AMOUNT OF PALETTE LINES
+00669  150A             
+00670  150A             
+00671  150A                        ;------------------------ WOBBLE VALUES --------------------------------------------------------------
+00672  150A  05 05 05   WOBBLE     BYTE $05,$05,$05,$05,$04,$04,$04,$03,$03,$02,$01,$00,$01,$02,$03,$03,$04,$04,$04,$05,$05,$05,$05,$FF
+00673  1522  E9 E9 E9   WOBBLE2    BYTE $E9,$E9,$E9,$E9,$E9,$E9,$E9,$E9,$E9,$E9,$E9,$69,$69,$69,$69,$69,$69,$69,$69,$69,$69,$69,$69,$FF
+00674  153A             
+00675  153A                        ;SCREEN-ADRESS BACKUP
+00676  153A  00 28 50   SCREENX    BYTE    $00,$28,$50,$78,$A0,$C8,$F0,$18,$40,$68,$90,$B8,$E0,$08,$30,$58,$80,$A8,$D0,$F8,$20,$48,$70,$98,$C0,$FF
+00677  1554  04 04 04   SCREENY    BYTE    $04,$04,$04,$04,$04,$04,$04,$05,$05,$05,$05,$05,$05,$06,$06,$06,$06,$06,$06,$06,$07,$07,$07,$07,$07,$FF
+00678  156E             
+00679  156E             
+00680  156E                        ;ADRESSTABLE FOR LINEBEGINNINGS OF THE PIXELMATRIX, AUTO GENERATED
+00681  156E  00 00 00   WHERELO    BYTE    $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$FF
+00682  1588  00 00 00   WHEREHI    BYTE    $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$FF
+00683  15A2             
+00684  15A2             
+00685  15A2             *=$1600    ;PUTTING THE TABLES ON BLOCK BEGININGS IS A GOOD IDEA FOR TIMING IMPROVEMENTS
+00686  1600             
+00687  1600                        ;XY COORDINATES X=0 TO $27 Y=0 TO $19 -- WILL BE OVERWRITTEN BY THE ROUTINE
+00688  1600  00 00 00   COORDX     BYTE    $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+00689  1620  00 00 00              BYTE    $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+00690  1640  00 00 00              BYTE    $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+00691  1660  00 00 00              BYTE    $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+00692  1680  00 00 00              BYTE    $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+00693  16A0  00 00 00              BYTE    $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+00694  16C0  00 00 00              BYTE    $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+00695  16E0  00 00 00              BYTE    $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+00696  1700  00 00 00   COORDY     BYTE    $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+00697  1720  00 00 00              BYTE    $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+00698  1740  00 00 00              BYTE    $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+00699  1760  00 00 00              BYTE    $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+00700  1780  00 00 00              BYTE    $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+00701  17A0  00 00 00              BYTE    $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+00702  17C0  00 00 00              BYTE    $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+00703  17E0  00 00 00              BYTE    $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+00704  1800             
+00705  1800                        ;MATRIX FOR RECORDING DEGREES OF A PIXEL. INTERNALLY WE ONLY CALCULATE WITH 256 DEGREES -- WILL BE OVERWRITTEN BY THE ROUTINE
+00706  1800  00 00 00   MATRXVAL   BYTE    $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+00707  1820  00 00 00              BYTE    $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+00708  1840  00 00 00              BYTE    $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+00709  1860  00 00 00              BYTE    $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+00710  1880  00 00 00              BYTE    $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+00711  18A0  00 00 00              BYTE    $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+00712  18C0  00 00 00              BYTE    $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+00713  18E0  00 00 00              BYTE    $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+00714  1900             
+00715  1900             
+00716  1900                        ; ADRESS TABLE FOR THE LINES IN THE VECTOR GRADIENT TABLE ( REPRESENTS DEGREES, SO TO SPEAK )
+00717  1900  00 00 00   VECTSLO    BYTE    $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+00718  1910  00 00 00              BYTE    $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+00719  1920  00 00 00   VECTSHI    BYTE    $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+00720  1930  00 00 00              BYTE    $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+00721  1940             
+00722  1940                        ;VECTOR GRADIENT TABLE (0 = NO SLOPE, 1 = SLOPE), THIS TABLE IS READ FROM BOTH DIRECTIONS
+00723  1940  00 00 00   VECTS      BYTE    $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+00724  1968  01 00 00              BYTE    $01,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$01,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+00725  1990  01 00 00              BYTE    $01,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$01,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$01,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$01,$00,$00,$00
+00726  19B8  01 00 00              BYTE    $01,$00,$00,$00,$00,$00,$00,$00,$01,$00,$00,$00,$00,$00,$00,$00,$01,$00,$00,$00,$00,$00,$00,$00,$01,$00,$00,$00,$00,$00,$00,$00,$01,$00,$00,$00,$00,$00,$00,$00
+00727  19E0  01 00 00              BYTE    $01,$00,$00,$00,$00,$00,$01,$00,$00,$00,$00,$00,$01,$00,$00,$00,$00,$00,$01,$00,$00,$00,$00,$00,$01,$00,$00,$00,$00,$00,$01,$00,$00,$00,$00,$00,$01,$00,$00,$00
+00728  1A08  01 00 00              BYTE    $01,$00,$00,$00,$01,$00,$00,$00,$00,$01,$00,$00,$00,$00,$01,$00,$00,$00,$00,$01,$00,$00,$00,$00,$01,$00,$00,$00,$01,$00,$00,$00,$00,$01,$00,$00,$00,$00,$01,$00
+00729  1A30  01 00 00              BYTE    $01,$00,$00,$00,$01,$00,$00,$00,$01,$00,$00,$00,$01,$00,$00,$00,$01,$00,$00,$00,$01,$00,$00,$00,$01,$00,$00,$00,$01,$00,$00,$00,$01,$00,$00,$00,$01,$00,$00,$00
+00730  1A58  01 00 00              BYTE    $01,$00,$00,$01,$00,$00,$01,$00,$00,$00,$01,$00,$00,$01,$00,$00,$00,$01,$00,$00,$01,$00,$00,$00,$01,$00,$00,$01,$00,$00,$01,$00,$00,$00,$01,$00,$00,$01,$00,$00
+00731  1A80  01 00 00              BYTE    $01,$00,$00,$01,$00,$00,$01,$00,$00,$01,$00,$00,$01,$00,$00,$01,$00,$00,$01,$00,$00,$01,$00,$00,$01,$00,$00,$01,$00,$00,$01,$00,$00,$01,$00,$00,$01,$00,$00,$01
+00732  1AA8  01 00 01              BYTE    $01,$00,$01,$00,$00,$01,$00,$00,$01,$00,$01,$00,$00,$01,$00,$00,$01,$00,$01,$00,$00,$01,$00,$01,$00,$00,$01,$00,$00,$01,$00,$01,$00,$00,$01,$00,$00,$01,$00,$00
+00733  1AD0  01 00 01              BYTE    $01,$00,$01,$00,$01,$00,$00,$01,$00,$01,$00,$00,$01,$00,$01,$00,$01,$00,$00,$01,$00,$01,$00,$00,$01,$00,$01,$00,$01,$00,$00,$01,$00,$01,$00,$00,$01,$00,$01,$00
+00734  1AF8  01 00 01              BYTE    $01,$00,$01,$00,$01,$00,$01,$00,$01,$00,$01,$00,$00,$01,$00,$01,$00,$01,$00,$01,$00,$01,$00,$00,$01,$00,$01,$00,$01,$00,$01,$00,$01,$00,$01,$00,$00,$01,$00,$01
+00735  1B20  01 00 01              BYTE    $01,$00,$01,$00,$01,$00,$01,$00,$01,$00,$01,$00,$01,$00,$01,$00,$01,$00,$01,$00,$01,$00,$01,$00,$01,$00,$01,$00,$01,$00,$01,$00,$01,$00,$01,$00,$01,$00,$01,$00
+00736  1B48  01 01 00              BYTE    $01,$01,$00,$01,$00,$01,$00,$01,$00,$01,$00,$01,$01,$00,$01,$00,$01,$00,$01,$00,$01,$00,$01,$00,$01,$01,$00,$01,$00,$01,$00,$01,$00,$01,$00,$01,$01,$00,$01,$00
+00737  1B70  01 01 00              BYTE    $01,$01,$00,$01,$00,$01,$01,$00,$01,$00,$01,$00,$01,$01,$00,$01,$00,$01,$01,$00,$01,$00,$01,$00,$01,$01,$00,$01,$00,$01,$01,$00,$01,$00,$01,$00,$01,$01,$00,$01
+00738  1B98  01 01 00              BYTE    $01,$01,$00,$01,$01,$00,$01,$00,$01,$01,$00,$01,$01,$00,$01,$00,$01,$01,$00,$01,$01,$00,$01,$00,$01,$01,$00,$01,$01,$00,$01,$00,$01,$01,$00,$01,$01,$00,$01,$01
+00739  1BC0  01 01 00              BYTE    $01,$01,$00,$01,$01,$00,$01,$01,$00,$01,$01,$00,$01,$01,$00,$01,$01,$00,$01,$01,$00,$01,$01,$00,$01,$01,$00,$01,$01,$00,$01,$01,$00,$01,$01,$00,$01,$01,$00,$01
+00740  1BE8  01 01 01              BYTE    $01,$01,$01,$00,$01,$01,$00,$01,$01,$01,$00,$01,$01,$00,$01,$01,$01,$00,$01,$01,$00,$01,$01,$00,$01,$01,$01,$00,$01,$01,$00,$01,$01,$01,$00,$01,$01,$00,$01,$01
+00741  1C10  01 01 01              BYTE    $01,$01,$01,$00,$01,$01,$01,$00,$01,$01,$01,$01,$00,$01,$01,$01,$00,$01,$01,$00,$01,$01,$01,$00,$01,$01,$01,$00,$01,$01,$01,$00,$01,$01,$01,$00,$01,$01,$01,$01
+00742  1C38  01 01 01              BYTE    $01,$01,$01,$01,$00,$01,$01,$01,$01,$00,$01,$01,$01,$01,$00,$01,$01,$01,$01,$00,$01,$01,$01,$00,$01,$01,$01,$01,$00,$01,$01,$01,$01,$00,$01,$01,$01,$01,$00,$01
+00743  1C60  01 01 01              BYTE    $01,$01,$01,$01,$01,$00,$01,$01,$01,$01,$01,$00,$01,$01,$01,$01,$01,$00,$01,$01,$01,$01,$01,$00,$01,$01,$01,$01,$01,$00,$01,$01,$01,$01,$01,$00,$01,$01,$01,$01
+00744  1C88  01 01 01              BYTE    $01,$01,$01,$01,$01,$01,$01,$00,$01,$01,$01,$01,$01,$01,$01,$01,$00,$01,$01,$01,$01,$01,$01,$01,$00,$01,$01,$01,$01,$01,$01,$01,$00,$01,$01,$01,$01,$01,$01,$00
+00745  1CB0  01 01 01              BYTE    $01,$01,$01,$01,$01,$01,$01,$01,$01,$01,$01,$00,$01,$01,$01,$01,$01,$01,$01,$01,$01,$01,$01,$00,$01,$01,$01,$01,$01,$01,$01,$01,$01,$01,$01,$00,$01,$01,$01,$01
+00746  1CD8  01 01 01              BYTE    $01,$01,$01,$01,$01,$01,$01,$01,$01,$01,$01,$01,$01,$01,$01,$01,$01,$01,$01,$01,$01,$01,$01,$01,$00,$01,$01,$01,$01,$01,$01,$01,$01,$01,$01,$01,$01,$01,$01,$01
+00747  1D00  01 01 01              BYTE    $01,$01,$01,$01,$01,$01,$01,$01,$01,$01,$01,$01,$01,$01,$01,$01,$01,$01,$01,$01,$01,$01,$01,$01,$01,$01,$01,$01,$01,$01,$01,$01,$01,$01,$01,$01,$01,$01,$01,$01
+00748  1D28             
+00749  1D28             
+00750  1D28                        ;TRANSLATION: 360 DEGREES ARE HERE 256 DEGREES  AND THEN TRANSLATED TO 25 GRADIENT LINES IN THE VECTOR GRADIENT TABLE
+00751  1D28                        ;SHARED AND COMBINED
+00752  1D28             
+00753  1D28  00 00 01   TRANSLATEY BYTE    $00,$00,$01,$02,$03,$03,$04,$05,$06,$07,$07,$08,$09,$0A,$0B,$0C
+00754  1D38  0D 0E 0E              BYTE    $0D,$0E,$0E,$0F,$10,$11,$11,$12,$13,$14,$15,$15,$16,$17,$18,$18
+00755  1D48  18 18 18              BYTE    $18,$18,$18,$18,$18,$18,$18,$18,$18,$18,$18,$18,$18,$18,$18,$18
+00756  1D58  18 18 18              BYTE    $18,$18,$18,$18,$18,$18,$18,$18,$18,$18,$18,$18,$18,$18,$18,$18
+00757  1D68  18 18 18   TRANSLATEX BYTE    $18,$18,$18,$18,$18,$18,$18,$18,$18,$18,$18,$18,$18,$18,$18,$18     ; X USES THE SAME TABLE AS Y BUT ADVANCED BY 180°
+00758  1D78  18 18 18              BYTE    $18,$18,$18,$18,$18,$18,$18,$18,$18,$18,$18,$18,$18,$18,$18,$18
+00759  1D88  18 18 17              BYTE    $18,$18,$17,$16,$15,$15,$14,$13,$12,$11,$11,$10,$0F,$0E,$0E,$0D
+00760  1D98  0C 0B 0A              BYTE    $0C,$0B,$0A,$0A,$09,$08,$07,$07,$06,$05,$04,$03,$03,$02,$01,$00
+00761  1DA8  00 01 01              BYTE    $00,$01,$01,$02,$03,$03,$04,$05,$06,$07,$07,$08,$09,$0A,$0B,$0C
+00762  1DB8  0D 0E 0E              BYTE    $0D,$0E,$0E,$0F,$10,$11,$11,$12,$13,$14,$15,$15,$16,$17,$18,$18
+00763  1DC8  18 18 18              BYTE    $18,$18,$18,$18,$18,$18,$18,$18,$18,$18,$18,$18,$18,$18,$18,$18
+00764  1DD8  18 18 18              BYTE    $18,$18,$18,$18,$18,$18,$18,$18,$18,$18,$18,$18,$18,$18,$18,$18
+00765  1DE8  18 18 18              BYTE    $18,$18,$18,$18,$18,$18,$18,$18,$18,$18,$18,$18,$18,$18,$18,$18
+00766  1DF8  18 18 18              BYTE    $18,$18,$18,$18,$18,$18,$18,$18,$18,$18,$18,$18,$18,$18,$18,$18
+00767  1E08  18 18 17              BYTE    $18,$18,$17,$16,$15,$15,$14,$13,$12,$11,$11,$10,$0F,$0E,$0E,$0D
+00768  1E18  0C 0B 0A              BYTE    $0C,$0B,$0A,$0A,$09,$08,$07,$07,$06,$05,$04,$03,$03,$02,$01,$00
+00769  1E28  00 01 01              BYTE    $00,$01,$01,$02,$03,$03,$04,$05,$06,$07,$07,$08,$09,$0A,$0B,$0C
+00770  1E38  0D 0E 0E              BYTE    $0D,$0E,$0E,$0F,$10,$11,$11,$12,$13,$14,$15,$15,$16,$17,$18,$18
+00771  1E48  18 18 18              BYTE    $18,$18,$18,$18,$18,$18,$18,$18,$18,$18,$18,$18,$18,$18,$18,$18
+00772  1E58  18 18 18              BYTE    $18,$18,$18,$18,$18,$18,$18,$18,$18,$18,$18,$18,$18,$18,$18,$18
+00773  1E68             
+00774  1E68             
+00775  1E68                        ;DISPLAYBORDER STOPTABLE 1 = BORDER (DEATH), 0 = SCREEN (ALIVE)
+00776  1E68                        ;BOTH TABLES CONTAIN 256 VALUES AND ARE READ LINEAR
+00777  1E68                        ;SO IF FOR X THE FIRST STOP POSITION (BORDER) IS NATURALLY
+00778  1E68                        ;40 = $28, THEN FROM BYTE 40 ON, ALL BYTES MUST BE SET TO 1
+00779  1E68                        ;IF NOT, THE ROUTINE WILL BRUTALLY WRITE INTO RAM!!!
+00780  1E68             
+00781  1E68                        ;0  1  2  3  4  5  6  7  8  9  A  B  C  D  E  F
+00782  1E68  00 00 00   STOPX      BYTE    $0,$0,$0,$0,$0,$0,$0,$0,$0,$0,$0,$0,$0,$0,$0,$0
+00783  1E78  00 00 00              BYTE    $0,$0,$0,$0,$0,$0,$0,$0,$0,$0,$0,$0,$0,$0,$0,$0
+00784  1E88  00 00 00              BYTE    $0,$0,$0,$0,$0,$0,$0,$0,$1,$1,$1,$1,$1,$1,$1,$1 ;BYTE 40 ($28) IS THE FIRST "1" VALUE
+00785  1E98  01 01 01              BYTE    $1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1
+00786  1EA8  01 01 01              BYTE    $1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1
+00787  1EB8  01 01 01              BYTE    $1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1
+00788  1EC8  01 01 01              BYTE    $1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1
+00789  1ED8  01 01 01              BYTE    $1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1
+00790  1EE8  01 01 01              BYTE    $1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1
+00791  1EF8  01 01 01              BYTE    $1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1
+00792  1F08  01 01 01              BYTE    $1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1
+00793  1F18  01 01 01              BYTE    $1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1
+00794  1F28  01 01 01              BYTE    $1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1
+00795  1F38  01 01 01              BYTE    $1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1
+00796  1F48  01 01 01              BYTE    $1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1
+00797  1F58  01 01 01              BYTE    $1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1
+00798  1F68             
+00799  1F68                        ;0  1  2  3  4  5  6  7  8  9  A  B  C  D  E  F
+00800  1F68  00 00 00   STOPY      BYTE    $0,$0,$0,$0,$0,$0,$0,$0,$0,$0,$0,$0,$0,$0,$0,$0
+00801  1F78  00 00 00              BYTE    $0,$0,$0,$0,$0,$0,$0,$0,$0,$1,$1,$1,$1,$1,$1,$1 ;BYTE 25 ($19) IS THE FIRST "1" VALUE
+00802  1F88  01 01 01              BYTE    $1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1
+00803  1F98  01 01 01              BYTE    $1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1
+00804  1FA8  01 01 01              BYTE    $1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1
+00805  1FB8  01 01 01              BYTE    $1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1
+00806  1FC8  01 01 01              BYTE    $1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1
+00807  1FD8  01 01 01              BYTE    $1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1
+00808  1FE8  01 01 01              BYTE    $1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1
+00809  1FF8  01 01 01              BYTE    $1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1
+00810  2008  01 01 01              BYTE    $1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1
+00811  2018  01 01 01              BYTE    $1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1
+00812  2028  01 01 01              BYTE    $1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1
+00813  2038  01 01 01              BYTE    $1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1
+00814  2048  01 01 01              BYTE    $1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1
+00815  2058  01 01 01              BYTE    $1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1,$1
+00816  2068             
+00817  2068             
+00818  2068                        ; $CA = DEX  $E8 = INX SELFMODIFYING CODE TABLE. THIS IS A SHARED AND COMBINED TABLE
+00819  2068  E8 E8 E8   COMMANDSY  BYTE    $E8,$E8,$E8,$E8,$E8,$E8,$E8,$E8,$E8,$E8,$E8,$E8,$E8,$E8,$E8,$E8
+00820  2078  E8 E8 E8              BYTE    $E8,$E8,$E8,$E8,$E8,$E8,$E8,$E8,$E8,$E8,$E8,$E8,$E8,$E8,$E8,$E8
+00821  2088  E8 E8 E8              BYTE    $E8,$E8,$E8,$E8,$E8,$E8,$E8,$E8,$E8,$E8,$E8,$E8,$E8,$E8,$E8,$E8
+00822  2098  E8 E8 E8              BYTE    $E8,$E8,$E8,$E8,$E8,$E8,$E8,$E8,$E8,$E8,$E8,$E8,$E8,$E8,$E8,$E8
+00823  20A8             
+00824  20A8  E8 E8 E8   COMMANDSX  BYTE    $E8,$E8,$E8,$E8,$E8,$E8,$E8,$E8,$E8,$E8,$E8,$E8,$E8,$E8,$E8,$E8
+00825  20B8  E8 E8 E8              BYTE    $E8,$E8,$E8,$E8,$E8,$E8,$E8,$E8,$E8,$E8,$E8,$E8,$E8,$E8,$E8,$E8
+00826  20C8  E8 E8 E8              BYTE    $E8,$E8,$E8,$E8,$E8,$E8,$E8,$E8,$E8,$E8,$E8,$E8,$E8,$E8,$E8,$E8
+00827  20D8  E8 E8 E8              BYTE    $E8,$E8,$E8,$E8,$E8,$E8,$E8,$E8,$E8,$E8,$E8,$E8,$E8,$E8,$E8,$E8
+00828  20E8             
+00829  20E8  CA CA CA              BYTE    $CA,$CA,$CA,$CA,$CA,$CA,$CA,$CA,$CA,$CA,$CA,$CA,$CA,$CA,$CA,$CA
+00830  20F8  CA CA CA              BYTE    $CA,$CA,$CA,$CA,$CA,$CA,$CA,$CA,$CA,$CA,$CA,$CA,$CA,$CA,$CA,$CA
+00831  2108  CA CA CA              BYTE    $CA,$CA,$CA,$CA,$CA,$CA,$CA,$CA,$CA,$CA,$CA,$CA,$CA,$CA,$CA,$CA
+00832  2118  CA CA CA              BYTE    $CA,$CA,$CA,$CA,$CA,$CA,$CA,$CA,$CA,$CA,$CA,$CA,$CA,$CA,$CA,$CA
+00833  2128             
+00834  2128  CA CA CA              BYTE    $CA,$CA,$CA,$CA,$CA,$CA,$CA,$CA,$CA,$CA,$CA,$CA,$CA,$CA,$CA,$CA
+00835  2138  CA CA CA              BYTE    $CA,$CA,$CA,$CA,$CA,$CA,$CA,$CA,$CA,$CA,$CA,$CA,$CA,$CA,$CA,$CA
+00836  2148  CA CA CA              BYTE    $CA,$CA,$CA,$CA,$CA,$CA,$CA,$CA,$CA,$CA,$CA,$CA,$CA,$CA,$CA,$CA
+00837  2158  CA CA CA              BYTE    $CA,$CA,$CA,$CA,$CA,$CA,$CA,$CA,$CA,$CA,$CA,$CA,$CA,$CA,$CA,$CA
+00838  2168             
+00839  2168  E8 E8 E8              BYTE    $E8,$E8,$E8,$E8,$E8,$E8,$E8,$E8,$E8,$E8,$E8,$E8,$E8,$E8,$E8,$E8
+00840  2178  E8 E8 E8              BYTE    $E8,$E8,$E8,$E8,$E8,$E8,$E8,$E8,$E8,$E8,$E8,$E8,$E8,$E8,$E8,$E8
+00841  2188  E8 E8 E8              BYTE    $E8,$E8,$E8,$E8,$E8,$E8,$E8,$E8,$E8,$E8,$E8,$E8,$E8,$E8,$E8,$E8
+00842  2198  E8 E8 E8              BYTE    $E8,$E8,$E8,$E8,$E8,$E8,$E8,$E8,$E8,$E8,$E8,$E8,$E8,$E8,$E8,$E8
+00843  21A8                        
+00844  21A8  EA 77 65   INITVALS   BYTE    $EA,$77,$65,$72,$74,$73,$74,$61,$68,$6C
+00845  21B2             
+00846  21B2             *=$3000    ;------------------------ CHARSET (THESE LINES ARE HANDDRAWN! :-)  ------------------------------------------------------
+00847  3000  00 00 00   FONTZOR    BYTE $00,$00,$00,$00,$00,$00,$00,$00
+00848  3008  00 00 00              BYTE $00,$00,$00,$FF,$FF,$00,$00,$00
+00849  3010  00 00 00              BYTE $00,$00,$00,$FE,$FF,$01,$00,$00
+00850  3018  00 00 00              BYTE $00,$00,$00,$FE,$FF,$01,$00,$00
+00851  3020  00 00 00              BYTE $00,$00,$00,$FC,$FF,$03,$00,$00
+00852  3028  00 00 00              BYTE $00,$00,$00,$FC,$FF,$03,$00,$00
+00853  3030  00 00 00              BYTE $00,$00,$00,$F8,$FF,$07,$00,$00
+00854  3038  00 00 00              BYTE $00,$00,$00,$F8,$FF,$07,$00,$00
+00855  3040  00 00 00              BYTE $00,$00,$00,$F0,$FF,$0F,$00,$00
+00856  3048  00 00 80              BYTE $00,$00,$80,$F8,$7F,$07,$00,$00
+00857  3050  00 00 80              BYTE $00,$00,$80,$FC,$3F,$03,$00,$00
+00858  3058  00 00 C0              BYTE $00,$00,$C0,$FC,$3F,$03,$00,$00
+00859  3060  00 00 C0              BYTE $00,$00,$C0,$F8,$1F,$03,$00,$00
+00860  3068  00 00 C0              BYTE $00,$00,$C0,$F8,$1F,$03,$00,$00
+00861  3070  00 00 C0              BYTE $00,$00,$C0,$FC,$3F,$03,$00,$00
+00862  3078  00 00 C0              BYTE $00,$00,$C0,$FC,$3F,$03,$00,$00
+00863  3080  00 00 C0              BYTE $00,$00,$C0,$FC,$3F,$03,$00,$00
+00864  3088  00 00 E0              BYTE $00,$00,$E0,$FC,$1F,$03,$00,$00
+00865  3090  00 80 E0              BYTE $00,$80,$E0,$7C,$1F,$03,$00,$00
+00866  3098  00 80 F0              BYTE $00,$80,$F0,$7E,$0F,$01,$00,$00
+00867  30A0  00 80 F0              BYTE $00,$80,$F0,$78,$0E,$07,$01,$00
+00868  30A8  00 C0 E0              BYTE $00,$C0,$E0,$38,$1C,$07,$03,$00
+00869  30B0  00 C0 F0              BYTE $00,$C0,$F0,$38,$0C,$07,$03,$00
+00870  30B8  00 C0 E0              BYTE $00,$C0,$E0,$38,$1E,$07,$01,$00
+00871  30C0  00 80 E0              BYTE $00,$80,$E0,$78,$1E,$07,$01,$00
+00872  30C8  80 C0 70              BYTE $80,$C0,$70,$38,$0C,$07,$03,$00
+00873  30D0  80 C0 70              BYTE $80,$C0,$70,$38,$0C,$06,$03,$01
+00874  30D8  80 C0 60              BYTE $80,$C0,$60,$38,$1C,$06,$03,$01
+00875  30E0  80 C0 60              BYTE $80,$C0,$60,$38,$1C,$06,$03,$01
+00876  30E8  80 C0 60              BYTE $80,$C0,$60,$30,$1C,$0E,$03,$01
+00877  30F0  80 C0 60              BYTE $80,$C0,$60,$30,$1C,$0E,$03,$01
+00878  30F8  80 C0 60              BYTE $80,$C0,$60,$30,$18,$0E,$07,$01
+00879  3100  80 C0 60              BYTE $80,$C0,$60,$30,$18,$0C,$06,$03
+00880  3108  C0 60 60              BYTE $C0,$60,$60,$30,$18,$0C,$06,$03
+00881  3110  C0 60 30              BYTE $C0,$60,$30,$30,$18,$0C,$06,$03
+00882  3118  C0 60 30              BYTE $C0,$60,$30,$18,$18,$0C,$06,$03
+00883  3120  60 60 30              BYTE $60,$60,$30,$30,$18,$0C,$06,$06
+00884  3128  60 60 30              BYTE $60,$60,$30,$18,$18,$0C,$06,$06
+00885  3130  60 60 30              BYTE $60,$60,$30,$30,$18,$0C,$0C,$06
+00886  3138  60 60 30              BYTE $60,$60,$30,$30,$18,$0C,$0C,$06
+00887  3140  60 30 30              BYTE $60,$30,$30,$18,$18,$0C,$0C,$06
+00888  3148  60 60 30              BYTE $60,$60,$30,$18,$18,$0C,$0C,$06
+00889  3150  60 60 30              BYTE $60,$60,$30,$30,$18,$0C,$06,$06
+00890  3158  60 60 30              BYTE $60,$60,$30,$18,$18,$0C,$06,$06
+00891  3160  60 30 30              BYTE $60,$30,$30,$30,$18,$0C,$0C,$06
+00892  3168  60 30 30              BYTE $60,$30,$30,$30,$18,$18,$18,$0C
+00893  3170  60 30 30              BYTE $60,$30,$30,$18,$18,$18,$0C,$0C
+00894  3178  30 30 30              BYTE $30,$30,$30,$18,$18,$18,$0C,$0C
+00895  3180  30 30 18              BYTE $30,$30,$18,$18,$18,$18,$0C,$0C
+00896  3188  30 30 18              BYTE $30,$30,$18,$18,$18,$18,$0C,$0C
+00897  3190  30 30 18              BYTE $30,$30,$18,$18,$18,$18,$0C,$0C
+00898  3198  30 30 30              BYTE $30,$30,$30,$18,$18,$18,$18,$0C
+00899  31A0  30 30 30              BYTE $30,$30,$30,$18,$18,$18,$18,$0C
+00900  31A8  30 30 30              BYTE $30,$30,$30,$18,$18,$18,$18,$0C
+00901  31B0  30 30 30              BYTE $30,$30,$30,$30,$30,$18,$18,$18
+00902  31B8  30 30 30              BYTE $30,$30,$30,$30,$30,$18,$18,$18
+00903  31C0  30 30 30              BYTE $30,$30,$30,$30,$18,$18,$18,$18
+00904  31C8  30 30 30              BYTE $30,$30,$30,$30,$18,$18,$18,$18
+00905  31D0  30 30 30              BYTE $30,$30,$30,$18,$18,$18,$18,$18
+00906  31D8  30 30 30              BYTE $30,$30,$30,$18,$18,$18,$18,$18
+00907  31E0  30 30 18              BYTE $30,$30,$18,$18,$18,$18,$18,$18
+00908  31E8  30 30 18              BYTE $30,$30,$18,$18,$18,$18,$18,$18
+00909  31F0  30 18 18              BYTE $30,$18,$18,$18,$18,$18,$18,$18
+00910  31F8  30 18 18              BYTE $30,$18,$18,$18,$18,$18,$18,$18
+00911  3200  18 18 18              BYTE $18,$18,$18,$18,$18,$18,$18,$18
+00912  3208  18 18 18              BYTE $18,$18,$18,$18,$18,$18,$18,$30
+00913  3210  18 18 18              BYTE $18,$18,$18,$18,$18,$18,$18,$30
+00914  3218  18 18 18              BYTE $18,$18,$18,$18,$18,$18,$30,$30
+00915  3220  18 18 18              BYTE $18,$18,$18,$18,$18,$18,$30,$30
+00916  3228  18 18 18              BYTE $18,$18,$18,$18,$18,$18,$30,$30
+00917  3230  18 18 18              BYTE $18,$18,$18,$18,$18,$30,$30,$30
+00918  3238  18 18 18              BYTE $18,$18,$18,$18,$18,$30,$30,$30
+00919  3240  18 18 18              BYTE $18,$18,$18,$18,$30,$30,$30,$30
+00920  3248  18 18 18              BYTE $18,$18,$18,$18,$18,$30,$30,$30
+00921  3250  18 18 18              BYTE $18,$18,$18,$18,$18,$30,$30,$30
+00922  3258  0C 0C 0C              BYTE $0C,$0C,$0C,$18,$18,$18,$18,$30
+00923  3260  0C 0C 0C              BYTE $0C,$0C,$0C,$18,$18,$18,$18,$30
+00924  3268  0C 0C 0C              BYTE $0C,$0C,$0C,$18,$18,$18,$18,$30
+00925  3270  0C 0C 18              BYTE $0C,$0C,$18,$18,$18,$18,$30,$30
+00926  3278  0C 0C 18              BYTE $0C,$0C,$18,$18,$18,$18,$30,$30
+00927  3280  0C 0C 18              BYTE $0C,$0C,$18,$18,$18,$18,$30,$30
+00928  3288  06 0C 0C              BYTE $06,$0C,$0C,$18,$18,$18,$30,$30
+00929  3290  06 0C 0C              BYTE $06,$0C,$0C,$0C,$18,$18,$18,$30
+00930  3298  06 0C 0C              BYTE $06,$0C,$0C,$0C,$18,$30,$30,$60
+00931  32A0  06 06 0C              BYTE $06,$06,$0C,$18,$18,$30,$60,$60
+00932  32A8  06 06 0C              BYTE $06,$06,$0C,$0C,$18,$30,$60,$60
+00933  32B0  06 06 0C              BYTE $06,$06,$0C,$0C,$18,$30,$60,$60
+00934  32B8  06 06 0C              BYTE $06,$06,$0C,$18,$18,$30,$30,$60
+00935  32C0  06 0C 0C              BYTE $06,$0C,$0C,$18,$18,$30,$30,$60
+00936  32C8  06 06 0C              BYTE $06,$06,$0C,$0C,$18,$30,$30,$60
+00937  32D0  06 06 0C              BYTE $06,$06,$0C,$0C,$18,$30,$30,$60
+00938  32D8  06 06 0C              BYTE $06,$06,$0C,$18,$18,$30,$60,$60
+00939  32E0  06 06 0C              BYTE $06,$06,$0C,$0C,$18,$30,$60,$60
+00940  32E8  03 06 0C              BYTE $03,$06,$0C,$18,$18,$30,$60,$C0
+00941  32F0  03 06 0C              BYTE $03,$06,$0C,$0C,$18,$30,$60,$C0
+00942  32F8  03 06 06              BYTE $03,$06,$06,$0C,$18,$30,$60,$C0
+00943  3300  01 03 06              BYTE $01,$03,$06,$0C,$18,$30,$60,$C0
+00944  3308  01 07 0E              BYTE $01,$07,$0E,$18,$30,$60,$C0,$80
+00945  3310  01 03 0E              BYTE $01,$03,$0E,$1C,$30,$60,$C0,$80
+00946  3318  01 03 0E              BYTE $01,$03,$0E,$1C,$30,$60,$C0,$80
+00947  3320  01 03 06              BYTE $01,$03,$06,$1C,$38,$60,$C0,$80
+00948  3328  01 03 06              BYTE $01,$03,$06,$1C,$38,$60,$C0,$80
+00949  3330  00 03 07              BYTE $00,$03,$07,$0C,$38,$70,$C0,$80
+00950  3338  00 01 07              BYTE $00,$01,$07,$0E,$38,$70,$C0,$80
+00951  3340  00 01 07              BYTE $00,$01,$07,$1E,$78,$E0,$80,$00
+00952  3348  00 03 07              BYTE $00,$03,$07,$1C,$78,$E0,$80,$00
+00953  3350  00 03 0F              BYTE $00,$03,$0F,$1C,$30,$E0,$C0,$00
+00954  3358  00 03 07              BYTE $00,$03,$07,$1C,$38,$E0,$C0,$00
+00955  3360  00 01 0F              BYTE $00,$01,$0F,$1E,$70,$E0,$80,$00
+00956  3368  00 01 0F              BYTE $00,$01,$0F,$7E,$F0,$80,$00,$00
+00957  3370  00 01 07              BYTE $00,$01,$07,$3E,$F8,$C0,$00,$00
+00958  3378  00 00 07              BYTE $00,$00,$07,$3F,$F8,$C0,$00,$00
+00959  3380  00 00 03              BYTE $00,$00,$03,$3F,$FC,$C0,$00,$00
+00960  3388  00 00 03              BYTE $00,$00,$03,$3F,$FC,$C0,$00,$00
+00961  3390  00 00 03              BYTE $00,$00,$03,$3F,$FC,$C0,$00,$00
+00962  3398  00 00 03              BYTE $00,$00,$03,$1F,$F8,$C0,$00,$00
+00963  33A0  00 00 03              BYTE $00,$00,$03,$1F,$F8,$C0,$00,$00
+00964  33A8  00 00 03              BYTE $00,$00,$03,$3F,$FC,$C0,$00,$00
+00965  33B0  00 00 03              BYTE $00,$00,$03,$3F,$FC,$80,$00,$00
+00966  33B8  00 00 01              BYTE $00,$00,$01,$1F,$FE,$E0,$00,$00
+00967  33C0  00 00 00              BYTE $00,$00,$00,$0F,$FF,$F0,$00,$00
+00968  33C8  00 00 00              BYTE $00,$00,$00,$07,$FF,$F8,$00,$00
+00969  33D0  00 00 00              BYTE $00,$00,$00,$07,$FF,$F8,$00,$00
+00970  33D8  00 00 00              BYTE $00,$00,$00,$03,$FF,$FC,$00,$00
+00971  33E0  00 00 00              BYTE $00,$00,$00,$03,$FF,$FC,$00,$00
+00972  33E8  00 00 00              BYTE $00,$00,$00,$01,$FF,$FE,$00,$00
+00973  33F0  00 00 00              BYTE $00,$00,$00,$01,$FF,$FE,$00,$00
+00974  33F8  00 00 00              BYTE $00,$00,$00,$FF,$FF,$00,$00,$00
+00975  3400  00 00 00              BYTE $00,$00,$00,$00,$00,$00,$00,$00
+00976  3408  00 00 00              BYTE $00,$00,$00,$FF,$FF,$00,$00,$00
+00977  3410  00 00 00              BYTE $00,$00,$00,$FE,$FF,$01,$00,$00
+00978  3418  00 00 00              BYTE $00,$00,$00,$FE,$FF,$01,$00,$00
+00979  3420  00 00 00              BYTE $00,$00,$00,$FC,$FF,$03,$00,$00
+00980  3428  00 00 00              BYTE $00,$00,$00,$FC,$FF,$03,$00,$00
+00981  3430  00 00 00              BYTE $00,$00,$00,$F8,$FF,$07,$00,$00
+00982  3438  00 00 00              BYTE $00,$00,$00,$F8,$FF,$07,$00,$00
+00983  3440  00 00 00              BYTE $00,$00,$00,$F0,$FF,$0F,$00,$00
+00984  3448  00 00 80              BYTE $00,$00,$80,$F8,$7F,$07,$00,$00
+00985  3450  00 00 80              BYTE $00,$00,$80,$FC,$3F,$03,$00,$00
+00986  3458  00 00 C0              BYTE $00,$00,$C0,$FC,$3F,$03,$00,$00
+00987  3460  00 00 C0              BYTE $00,$00,$C0,$F8,$1F,$03,$00,$00
+00988  3468  00 00 C0              BYTE $00,$00,$C0,$F8,$1F,$03,$00,$00
+00989  3470  00 00 C0              BYTE $00,$00,$C0,$FC,$3F,$03,$00,$00
+00990  3478  00 00 C0              BYTE $00,$00,$C0,$FC,$3F,$03,$00,$00
+00991  3480  00 00 C0              BYTE $00,$00,$C0,$FC,$3F,$03,$00,$00
+00992  3488  00 00 E0              BYTE $00,$00,$E0,$FC,$1F,$03,$00,$00
+00993  3490  00 80 E0              BYTE $00,$80,$E0,$7C,$1F,$03,$00,$00
+00994  3498  00 80 F0              BYTE $00,$80,$F0,$7E,$0F,$01,$00,$00
+00995  34A0  00 80 F0              BYTE $00,$80,$F0,$78,$0E,$07,$01,$00
+00996  34A8  00 C0 E0              BYTE $00,$C0,$E0,$38,$1C,$07,$03,$00
+00997  34B0  00 C0 F0              BYTE $00,$C0,$F0,$38,$0C,$07,$03,$00
+00998  34B8  00 C0 E0              BYTE $00,$C0,$E0,$38,$1E,$07,$01,$00
+00999  34C0  00 80 E0              BYTE $00,$80,$E0,$78,$1E,$07,$01,$00
+01000  34C8  80 C0 70              BYTE $80,$C0,$70,$38,$0C,$07,$03,$00
+01001  34D0  80 C0 70              BYTE $80,$C0,$70,$38,$0C,$06,$03,$01
+01002  34D8  80 C0 60              BYTE $80,$C0,$60,$38,$1C,$06,$03,$01
+01003  34E0  80 C0 60              BYTE $80,$C0,$60,$38,$1C,$06,$03,$01
+01004  34E8  80 C0 60              BYTE $80,$C0,$60,$30,$1C,$0E,$03,$01
+01005  34F0  80 C0 60              BYTE $80,$C0,$60,$30,$1C,$0E,$03,$01
+01006  34F8  80 C0 60              BYTE $80,$C0,$60,$30,$18,$0E,$07,$01
+01007  3500  80 C0 60              BYTE $80,$C0,$60,$30,$18,$0C,$06,$03
+01008  3508  C0 60 60              BYTE $C0,$60,$60,$30,$18,$0C,$06,$03
+01009  3510  C0 60 30              BYTE $C0,$60,$30,$30,$18,$0C,$06,$03
+01010  3518  C0 60 30              BYTE $C0,$60,$30,$18,$18,$0C,$06,$03
+01011  3520  60 60 30              BYTE $60,$60,$30,$30,$18,$0C,$06,$06
+01012  3528  60 60 30              BYTE $60,$60,$30,$18,$18,$0C,$06,$06
+01013  3530  60 60 30              BYTE $60,$60,$30,$30,$18,$0C,$0C,$06
+01014  3538  60 60 30              BYTE $60,$60,$30,$30,$18,$0C,$0C,$06
+01015  3540  60 30 30              BYTE $60,$30,$30,$18,$18,$0C,$0C,$06
+01016  3548  60 60 30              BYTE $60,$60,$30,$18,$18,$0C,$0C,$06
+01017  3550  60 60 30              BYTE $60,$60,$30,$30,$18,$0C,$06,$06
+01018  3558  60 60 30              BYTE $60,$60,$30,$18,$18,$0C,$06,$06
+01019  3560  60 30 30              BYTE $60,$30,$30,$30,$18,$0C,$0C,$06
+01020  3568  60 30 30              BYTE $60,$30,$30,$30,$18,$18,$18,$0C
+01021  3570  60 30 30              BYTE $60,$30,$30,$18,$18,$18,$0C,$0C
+01022  3578  30 30 30              BYTE $30,$30,$30,$18,$18,$18,$0C,$0C
+01023  3580  30 30 18              BYTE $30,$30,$18,$18,$18,$18,$0C,$0C
+01024  3588  30 30 18              BYTE $30,$30,$18,$18,$18,$18,$0C,$0C
+01025  3590  30 30 18              BYTE $30,$30,$18,$18,$18,$18,$0C,$0C
+01026  3598  30 30 30              BYTE $30,$30,$30,$18,$18,$18,$18,$0C
+01027  35A0  30 30 30              BYTE $30,$30,$30,$18,$18,$18,$18,$0C
+01028  35A8  30 30 30              BYTE $30,$30,$30,$18,$18,$18,$18,$0C
+01029  35B0  30 30 30              BYTE $30,$30,$30,$30,$30,$18,$18,$18
+01030  35B8  30 30 30              BYTE $30,$30,$30,$30,$30,$18,$18,$18
+01031  35C0  30 30 30              BYTE $30,$30,$30,$30,$18,$18,$18,$18
+01032  35C8  30 30 30              BYTE $30,$30,$30,$30,$18,$18,$18,$18
+01033  35D0  30 30 30              BYTE $30,$30,$30,$18,$18,$18,$18,$18
+01034  35D8  30 30 30              BYTE $30,$30,$30,$18,$18,$18,$18,$18
+01035  35E0  30 30 18              BYTE $30,$30,$18,$18,$18,$18,$18,$18
+01036  35E8  30 30 18              BYTE $30,$30,$18,$18,$18,$18,$18,$18
+01037  35F0  30 18 18              BYTE $30,$18,$18,$18,$18,$18,$18,$18
+01038  35F8  30 18 18              BYTE $30,$18,$18,$18,$18,$18,$18,$18
+01039  3600  18 18 18              BYTE $18,$18,$18,$18,$18,$18,$18,$18
+01040  3608  18 18 18              BYTE $18,$18,$18,$18,$18,$18,$18,$30
+01041  3610  18 18 18              BYTE $18,$18,$18,$18,$18,$18,$18,$30
+01042  3618  18 18 18              BYTE $18,$18,$18,$18,$18,$18,$30,$30
+01043  3620  18 18 18              BYTE $18,$18,$18,$18,$18,$18,$30,$30
+01044  3628  18 18 18              BYTE $18,$18,$18,$18,$18,$18,$30,$30
+01045  3630  18 18 18              BYTE $18,$18,$18,$18,$18,$30,$30,$30
+01046  3638  18 18 18              BYTE $18,$18,$18,$18,$18,$30,$30,$30
+01047  3640  18 18 18              BYTE $18,$18,$18,$18,$30,$30,$30,$30
+01048  3648  18 18 18              BYTE $18,$18,$18,$18,$18,$30,$30,$30
+01049  3650  18 18 18              BYTE $18,$18,$18,$18,$18,$30,$30,$30
+01050  3658  0C 0C 0C              BYTE $0C,$0C,$0C,$18,$18,$18,$18,$30
+01051  3660  0C 0C 0C              BYTE $0C,$0C,$0C,$18,$18,$18,$18,$30
+01052  3668  0C 0C 0C              BYTE $0C,$0C,$0C,$18,$18,$18,$18,$30
+01053  3670  0C 0C 18              BYTE $0C,$0C,$18,$18,$18,$18,$30,$30
+01054  3678  0C 0C 18              BYTE $0C,$0C,$18,$18,$18,$18,$30,$30
+01055  3680  0C 0C 18              BYTE $0C,$0C,$18,$18,$18,$18,$30,$30
+01056  3688  06 0C 0C              BYTE $06,$0C,$0C,$18,$18,$18,$30,$30
+01057  3690  06 0C 0C              BYTE $06,$0C,$0C,$0C,$18,$18,$18,$30
+01058  3698  06 0C 0C              BYTE $06,$0C,$0C,$0C,$18,$30,$30,$60
+01059  36A0  06 06 0C              BYTE $06,$06,$0C,$18,$18,$30,$60,$60
+01060  36A8  06 06 0C              BYTE $06,$06,$0C,$0C,$18,$30,$60,$60
+01061  36B0  06 06 0C              BYTE $06,$06,$0C,$0C,$18,$30,$60,$60
+01062  36B8  06 06 0C              BYTE $06,$06,$0C,$18,$18,$30,$30,$60
+01063  36C0  06 0C 0C              BYTE $06,$0C,$0C,$18,$18,$30,$30,$60
+01064  36C8  06 06 0C              BYTE $06,$06,$0C,$0C,$18,$30,$30,$60
+01065  36D0  06 06 0C              BYTE $06,$06,$0C,$0C,$18,$30,$30,$60
+01066  36D8  06 06 0C              BYTE $06,$06,$0C,$18,$18,$30,$60,$60
+01067  36E0  06 06 0C              BYTE $06,$06,$0C,$0C,$18,$30,$60,$60
+01068  36E8  03 06 0C              BYTE $03,$06,$0C,$18,$18,$30,$60,$C0
+01069  36F0  03 06 0C              BYTE $03,$06,$0C,$0C,$18,$30,$60,$C0
+01070  36F8  03 06 06              BYTE $03,$06,$06,$0C,$18,$30,$60,$C0
+01071  3700  01 03 06              BYTE $01,$03,$06,$0C,$18,$30,$60,$C0
+01072  3708  01 07 0E              BYTE $01,$07,$0E,$18,$30,$60,$C0,$80
+01073  3710  01 03 0E              BYTE $01,$03,$0E,$1C,$30,$60,$C0,$80
+01074  3718  01 03 0E              BYTE $01,$03,$0E,$1C,$30,$60,$C0,$80
+01075  3720  01 03 06              BYTE $01,$03,$06,$1C,$38,$60,$C0,$80
+01076  3728  01 03 06              BYTE $01,$03,$06,$1C,$38,$60,$C0,$80
+01077  3730  00 03 07              BYTE $00,$03,$07,$0C,$38,$70,$C0,$80
+01078  3738  00 01 07              BYTE $00,$01,$07,$0E,$38,$70,$C0,$80
+01079  3740  00 01 07              BYTE $00,$01,$07,$1E,$78,$E0,$80,$00
+01080  3748  00 03 07              BYTE $00,$03,$07,$1C,$78,$E0,$80,$00
+01081  3750  00 03 0F              BYTE $00,$03,$0F,$1C,$30,$E0,$C0,$00
+01082  3758  00 03 07              BYTE $00,$03,$07,$1C,$38,$E0,$C0,$00
+01083  3760  00 01 0F              BYTE $00,$01,$0F,$1E,$70,$E0,$80,$00
+01084  3768  00 01 0F              BYTE $00,$01,$0F,$7E,$F0,$80,$00,$00
+01085  3770  00 01 07              BYTE $00,$01,$07,$3E,$F8,$C0,$00,$00
+01086  3778  00 00 07              BYTE $00,$00,$07,$3F,$F8,$C0,$00,$00
+01087  3780  00 00 03              BYTE $00,$00,$03,$3F,$FC,$C0,$00,$00
+01088  3788  00 00 03              BYTE $00,$00,$03,$3F,$FC,$C0,$00,$00
+01089  3790  00 00 03              BYTE $00,$00,$03,$3F,$FC,$C0,$00,$00
+01090  3798  00 00 03              BYTE $00,$00,$03,$1F,$F8,$C0,$00,$00
+01091  37A0  00 00 03              BYTE $00,$00,$03,$1F,$F8,$C0,$00,$00
+01092  37A8  00 00 03              BYTE $00,$00,$03,$3F,$FC,$C0,$00,$00
+01093  37B0  00 00 03              BYTE $00,$00,$03,$3F,$FC,$80,$00,$00
+01094  37B8  00 00 01              BYTE $00,$00,$01,$1F,$FE,$E0,$00,$00
+01095  37C0  00 00 00              BYTE $00,$00,$00,$0F,$FF,$F0,$00,$00
+01096  37C8  00 00 00              BYTE $00,$00,$00,$07,$FF,$F8,$00,$00
+01097  37D0  00 00 00              BYTE $00,$00,$00,$07,$FF,$F8,$00,$00
+01098  37D8  00 00 00              BYTE $00,$00,$00,$03,$FF,$FC,$00,$00
+01099  37E0  00 00 00              BYTE $00,$00,$00,$03,$FF,$FC,$00,$00
+01100  37E8  00 00 00              BYTE $00,$00,$00,$01,$FF,$FE,$00,$00
+01101  37F0  00 00 00              BYTE $00,$00,$00,$01,$FF,$FE,$00,$00
+01102  37F8  00 00 00              BYTE $00,$00,$00,$FF,$FF,$00,$00,$00
+01103  3800                        
+01104  3800             ;------------------------------------------------------------------- EOF
+01105  3800             
+
+******* 112 Label(s) *******
+chbehave = $117D 
+checkstack = $10AF 
+clr = $12B6 
+cls = $12B4 
+colfin = $1280 
+colfinact = $127F 
+colfllp = $1249 
+colmatrx = $139A 
+colmatrx1 = $13AA 
+colmatrx2 = $13BA 
+colmatrx3 = $13CA 
+colmatrx4 = $13DA 
+colmatrx5 = $13EA 
+colmatrx6 = $13FA 
+colmatrx7 = $140A 
+colmatrx8 = $141A 
+colmatrx9 = $142A 
+colmatrxa = $143A 
+colmatrxb = $144A 
+colmatrxc = $145A 
+colmatrxd = $146A 
+colmatrxe = $147A 
+colmatrxf = $148A 
+colorfll = $1247 
+colorsort = $1226 
+commandsx = $20A8 
+commandsy = $2068 
+coordx = $1600 
+coordy = $1700 
+cp_hi = $1368 
+cp_lo = $1362 
+createpalette = $135E 
+createyvectors = $12FA 
+curcol = $1161 
+d8read = $1287 
+danext = $12A5 
+fllflush = $1322 
+flushcolors = $122A 
+flushmatrx = $131E 
+fontzor = $3000 
+foundone = $10BB 
+hupos = $1085 
+idle = $1048 
+initvals = $21A8 
+invertchar = $133A 
+invertoo = $1340 
+ivan = $1154 
+ivan2 = $1180 
+ivanact = $11BF 
+mainloop = $1066 
+maketab = $12D6 
+makmor = $12E3 
+makmor3 = $1307 
+matrxval = $1800 
+modpos = $1086 
+morecs = $123A 
+nocp_hi = $1379 
+noivan = $1156 
+nopixkill = $10F0 
+noplus = $1110 
+noplus2 = $1137 
+noprint = $1165 
+nowob = $11D3 
+nowob2 = $11A1 
+noxstop = $113E 
+noystop = $1117 
+outrans2 = $10E6 
+padr1 = $1232 
+padr2 = $123A 
+palcop = $11FB 
+palette = $149A 
+palettecnt = $1200 
+palettelohi = $1382 
+pixdeceased = $1176 
+process = $10D1 
+push = $1087 
+pushit = $108F 
+rechecks = $10B4 
+screenx = $153A 
+screeny = $1554 
+selfmodx = $1136 
+selfmody = $110F 
+setchar = $132F 
+stabelize = $106C 
+stackscan = $10AB 
+startpos = $1084 
+stopx = $1E68 
+stopy = $1F68 
+swtcol = $11F1 
+swtdelax = $1188 
+swtdelay = $11F4 
+translatex = $1D68 
+translatey = $1D28 
+vects = $1940 
+vectshi = $1920 
+vectslo = $1900 
+waste = $1076 
+wherehi = $1588 
+wherelo = $156E 
+wobbla = $11C0 
+wobbla2 = $1185 
+wobblabl2 = $1196 
+wobblabla = $11C8 
+wobble = $150A 
+wobble2 = $1522 
+wobblit = $11E4 
+wobblit2 = $11B2 
+wobblor = $11D6 
+wobblor2 = $11A4 
+wobext = $11BE 
+ynextl = $12EC 
+yster3 = $1310 
+
+******* 25 Unused label(s) *******
+cls
+cp_hi
+createpalette
+createyvectors
+curcol
+flushmatrx
+invertoo
+maketab
+noprint
+noxstop
+noystop
+padr1
+padr2
+palettecnt
+process
+screenx
+screeny
+setchar
+swtdelax
+swtdelay
+wobbla2
+wobblabl2
+wobblabla
+wobblor
+wobblor2
+
+******* 3 Variable(s) *******
+colordelay  = $0020
+maxpalettes  = $0007
+tgt_c64  = $0001
+******* 1 Unused variables(s) *******
+tgt_c64
+

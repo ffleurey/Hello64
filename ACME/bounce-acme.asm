@@ -1,27 +1,26 @@
-##{0:0:0:bounce.prg}E:\checkouts\C64\Hello64\bounce.asm
-
 ; Key in the basic program "10 SYS 4096"
 ; which invokes whatever machine code at addr 4096
 *=$0801
-       ; jmp $1000
-        byte $0c, $08, $0a, $00, $9e, $20
-        byte $34, $30, $39, $36, $00, $00
-        byte $00
+
+; jmp $1000
+!BYTE $0c, $08, $0a, $00, $9e, $20
+!BYTE $34, $30, $39, $36, $00, $00
+!BYTE $00
 
 ; my ball sprite data
 *=$0900
 
- BYTE $00,$3F,$00,$00,$FF,$C0
- BYTE $03,$FF,$F0,$07,$C3,$F8
- BYTE $0F,$0F,$FC,$1E,$3F,$FC
- BYTE $1C,$7F,$FE,$38,$FF,$FE
- BYTE $39,$FF,$FE,$73,$FF,$FE
- BYTE $73,$FF,$FE,$77,$FF,$FE
- BYTE $7F,$FF,$FE,$7F,$FF,$FC
- BYTE $3F,$FF,$FC,$3F,$FF,$F8
- BYTE $3F,$FF,$F0,$1F,$FF,$E0
- BYTE $1F,$FF,$C0,$07,$FF,$80
- BYTE $00,$7C,$00
+!BYTE $00,$3F,$00,$00,$FF,$C0
+!BYTE $03,$FF,$F0,$07,$C3,$F8
+!BYTE $0F,$0F,$FC,$1E,$3F,$FC
+!BYTE $1C,$7F,$FE,$38,$FF,$FE
+!BYTE $39,$FF,$FE,$73,$FF,$FE
+!BYTE $73,$FF,$FE,$77,$FF,$FE
+!BYTE $7F,$FF,$FE,$7F,$FF,$FC
+!BYTE $3F,$FF,$FC,$3F,$FF,$F8
+!BYTE $3F,$FF,$F0,$1F,$FF,$E0
+!BYTE $1F,$FF,$C0,$07,$FF,$80
+!BYTE $00,$7C,$00
 
 ; Put the machine code at address $1000 = 4096 dec
 *=$1000
@@ -137,9 +136,8 @@ loop1   lda $D012
         
         rts
 
-dx      byte $01
-dy      byte $01
-
+dx      !BYTE $01
+dy      !BYTE $01
 
 
 
